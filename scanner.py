@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import sys
 
 # Tokens for the scanner
@@ -12,29 +12,67 @@ class Token:
     def __str__(self) -> str:
         return self.repr
 
-class NumericToken(Token):  
+class NumberToken(Token):  
     def __init__(self, value: float):
         super().__init__(str(value))
         self.value: float = value
 
-class IdentifierToken(Token):
+class String(Token):
+    def __init__(self, s: str):
+        super().__init__(f'"{s}"')
+        self.value: str = s
+
+class Boolean(Token):
+    def __init__(self, value: bool):
+        super().__init__(str(value))
+        self.value: bool = value
+
+class Identifier(Token):
     def __init__(self, s: str):
         super().__init__(str(s))
         self.word : str = s
 
-class OperatorToken(Token):
+class Parenthesis(Token):
+    def __init__(self, symbol: str):
+        super().__init__(symbol)
+        self.symbol: str = symbol
+
+class Brace(Token):
+    def __init__(self, symbol: str):
+        super().__init__(symbol)
+        self.symbol: str = symbol
+
+class MathOP(Token):
     def __init__(self, op: str):
         super().__init__(op)
         self.op: str = op
 
-class ParenToken(Token):
-    def __init__(self, paren: str):
-        super().__init__(paren)
-        self.paren: str = paren
+class RelationalOP(Token):
+    def __init__(self, op: str):
+        super().__init__(op)
+        self.op: str = op
 
-class EqualityToken(Token):
+class EqualityOP(Token):
+    def __init__(self, op: str):
+        super().__init__(op)
+        self.op: str = op
+
+class LogicalOP(Token):
+    def __init__(self, op: str):
+        super().__init__(op)
+        self.op: str = op
+
+class AssignmentOP(Token):
     def __init__(self):
         super().__init__("=")
+
+class NotOP(Token):
+    def __init__(self):
+        super().__init__('not')
+
+class Semicolon(Token):
+    def __init__(self):
+        super().__init__(';')
 
 class EOFToken(Token):
     def __init__(self):
@@ -42,8 +80,9 @@ class EOFToken(Token):
 
 class Scanner:
     numbers: str = '0123456789.'
-    operators: str = '+-*/'
+    operators: str = '+-*/%<>!'
     parenthesis: str = '()'
+    braces: str = '{}'
     whitespaces: str = ' \t\n'
 
     def __init__(self):
@@ -51,30 +90,6 @@ class Scanner:
         self.string: str = ''
         self.index: int = 0
 
-    def scan(self, text: str) -> None:
-        self.string = text
-        self.index = 0
-        self.tokens = []
-
-        while self.inside_string():
-            if self.current_char in Scanner.numbers:
-                self.scan_nums()
-            elif self.current_char in Scanner.operators:
-                self.scan_op()
-            elif self.current_char in Scanner.whitespaces:
-                self.index += 1
-            elif self.current_char in Scanner.parenthesis:
-                self.scan_paren()
-            elif self.current_char == '=':
-                self.scan_equality()
-            elif self.current_char.isalpha():
-                self.scan_identifier()
-            else:
-                print("Invalid syntax")
-                self.tokens.clear()
-                break
-
-        # self.tokens.append(EOFToken())
 
     def inside_string(self) -> bool:
         return self.index < len(self.string)
@@ -83,15 +98,43 @@ class Scanner:
     def current_char(self) -> str:
         return self.string[self.index]
     
+    def peek(self) -> Optional[str]:
+        try:
+            next_char: str = self.string[self.index + 1]
+            return next_char
+        except IndexError:
+            return None
+    
+    def scan_brace(self) -> None:
+        self.tokens.append(Brace(self.current_char))
+        self.index += 1
+
+    def scan_semicolon(self) -> None:
+        self.tokens.append(Semicolon())
+        self.index += 1
+
     def scan_identifier(self) -> None:
+        '''
+        Scans an identifier. Also checks if it is a keyword
+        '''
         word: str = ''
         while self.inside_string() and (self.current_char.isalnum() or self.current_char == '_'):
             word += self.current_char
             self.index += 1
 
-        self.tokens.append(IdentifierToken(word))
+        if word == 'and' or word == 'or':
+            self.tokens.append(LogicalOP(word))
+        elif word == 'not':
+            self.tokens.append(NotOP())
+        elif word == 'True':
+            self.tokens.append(Boolean(True))
+        elif word == 'False':
+            self.tokens.append(Boolean(False))
+        else:
+            self.tokens.append(Identifier(word))
+        return
 
-    def scan_nums(self) -> None:
+    def scan_number(self) -> None:
         number: str = '' 
         decimal_count: int = 0
         while self.inside_string() and self.current_char in Scanner.numbers:
@@ -104,16 +147,88 @@ class Scanner:
             print(f"Syntax Error: {decimal_count} decimal points in a number")
             sys.exit()
         
-        self.tokens.append(NumericToken(float(number)))
+        self.tokens.append(NumberToken(float(number)))
 
-    def scan_op(self) -> None:
-        self.tokens.append(OperatorToken(self.current_char))
+    def scan_string(self) -> None:
+        s : str = ''
+        self.index += 1
+        while self.inside_string() and self.current_char != '"':
+            s += self.current_char
+            self.index += 1
+
+        try:
+            if self.current_char == '"':
+                self.tokens.append(String(s))
+                self.index += 1
+        except IndexError:
+            raise SyntaxError("Expected a \" at the end of string")
+        return
+
+    def scan_operator(self) -> None:
+        math_operator = '+-*/%'
+        relational_operator = '<>'
+
+        if self.current_char in math_operator:
+            self.tokens.append(MathOP(self.current_char))
+            self.index += 1
+
+        elif self.current_char in relational_operator:
+            if self.peek() == '=':
+                self.tokens.append(RelationalOP(self.current_char + '='))
+                self.index += 2
+            else:
+                self.tokens.append(RelationalOP(self.current_char))
+                self.index += 1
+
+        else:
+            if self.peek() == '=':
+                self.tokens.append(RelationalOP('!='))
+                self.index += 2
+            else:
+                raise SyntaxError("'!' is not an operator. Did you mean 'not'?")
+        return
+
+    def scan_parenthesis(self) -> None:
+        self.tokens.append(Parenthesis(self.current_char))
         self.index += 1
 
-    def scan_paren(self) -> None:
-        self.tokens.append(ParenToken(self.current_char))
-        self.index += 1
+    def scan_equal_symbol(self) -> None:
+        if self.peek() == '=':
+            self.tokens.append(RelationalOP('=='))
+            self.index += 2
+        else:
+            self.tokens.append(AssignmentOP())
+            self.index += 1
+    
+    def scan(self, text: str) -> None:
+        # Initialize the state of the scanner
+        self.string = text
+        self.index = 0
+        self.tokens.clear()
 
-    def scan_equality(self) -> None:
-        self.tokens.append(EqualityToken())
-        self.index += 1
+        while self.inside_string():
+            if self.current_char in Scanner.numbers:
+                self.scan_number()  # done 
+            elif self.current_char == '"':
+                self.scan_string() # done
+            elif self.current_char.isalpha():
+                self.scan_identifier() # done
+            elif self.current_char in Scanner.operators:
+                self.scan_operator() # done
+            elif self.current_char in Scanner.parenthesis:
+                self.scan_parenthesis() # done
+            elif self.current_char == '=':
+                self.scan_equal_symbol() # done
+            elif self.current_char in Scanner.whitespaces:
+                self.index += 1 # done
+            elif self.current_char in Scanner.braces:
+                self.scan_brace() #done
+            elif self.current_char == ';':
+                self.scan_semicolon()
+            else:
+                print("Invalid syntax")
+                # For debugging purposes, we are not clearing the token list
+                # self.tokens.clear()
+                break
+
+        self.tokens.append(EOFToken())
