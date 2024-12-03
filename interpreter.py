@@ -17,6 +17,7 @@ class Interpreter:
             if user_input == 'exit' or user_input == 'quit':
                 break
             self.scanner.scan(user_input)
+            # print(self.scanner.tokens)
             self.parser.parse(self.scanner.tokens)
             self.execute(self.parser.script)
 
@@ -28,27 +29,71 @@ class Interpreter:
             else:
                 stmt.accept(self)
 
-    def execute_binary_expr(self, expr: BinaryExpr) -> float:
-        l : float = expr.left.accept(self)
-        r : float = expr.right.accept(self)
+    def execute_logical_expr(self, expr: LogicalExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
+
+        if expr.operator == 'and':
+            return float(l and r)
+        
+        return float(l or r)
+    
+    def execute_equality_expr(self, expr: EqualityExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
+
+        if expr.operator == '==':
+            return float(l == r)
+        
+        return float(l != r)
+    
+    def execute_relational_expr(self, expr: RelationalExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
+
+        if expr.operator == '<':
+            return float(l < r)
+        elif expr.operator == '<=':
+            return float(l <= r)
+        elif expr.operator == '>':
+            return float(l > r)
+        else:
+            return float(l >= r)
+        
+    def execute_add_expr(self, expr: AddExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
 
         if expr.operator == '+':
             return l + r
-        elif expr.operator == '-':
-            return l - r
-        elif expr.operator == '*':
-            return l * r
-        elif expr.operator == '/':
-            if (r == 0):
-                print("Math Error: Divide by zero.")
-                sys.exit() 
-            return l / r
         else:
-            print(f"Syntax Error: Unknown operator '{expr.operator}'")
-            sys.exit()
+            return l - r
+        
+    def execute_modulus_expr(self, expr: ModulusExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
 
-    def execute_literal_expr(self, literal: LiteralExpr) -> float:
-        return literal.value
+        return int(l) % int(r)
     
-    def execute_unary_expr(self, unary: UnaryExpr) -> float:
-        return -1 * unary.expr.accept(self)
+    def execute_mul_expr(self, expr: MulExpr) -> float:
+        l: float = expr.left.accept(self)
+        r: float = expr.right.accept(self)
+
+        if expr.operator == '*':
+            return l * r
+        else:
+            return l / r
+        
+    def execute_negate_expr(self, expr: NegateExpr) -> float:
+        value: float = -1 * expr.expr.accept(self)
+        return value
+    
+    def execute_not_expr(self, expr: NotExpr) -> float:
+        value: float = not expr.expr.accept(self)
+        return float(value)
+
+    def execute_number_node(self, n: NumberNode) -> float:
+        return n.value
+    
+    def execute_bool_node(self, b: BooleanNode) -> float:
+        return float(b.value)

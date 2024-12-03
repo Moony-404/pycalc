@@ -35,12 +35,13 @@ class PrintStmt(Stmt):
 
     def accept(self, i: Interpreter) -> None:
         print(self.expr.accept(i))
-  
+
+# Classes for expressions  
 class Expr:
     def accept(self, i: Interpreter) -> float:
         return float('inf')
 
-class AssignmentExpr(Expr):
+class Assignment(Expr):
     def __init__(self, word: str, expr: Expr):
         self.word = word
         self.expr = expr
@@ -60,24 +61,86 @@ class BinaryExpr(Expr):
         self.operator: str = operator
         self.right: Expr = right
 
+    def accept(self, i: Interpreter):
+        pass
+
+class LogicalExpr(BinaryExpr):
+    def __init__(self, left: Expr, operator: str, right: Expr):
+        super().__init__(left, operator, right)
+
     def accept(self, i: Interpreter) -> float:
-        return i.execute_binary_expr(self)    
+        return i.execute_logical_expr(self)
+    
+class EqualityExpr(BinaryExpr):
+    def __init__(self, left: Expr, operator: str, right: Expr):
+        super().__init__(left, operator, right)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_equality_expr(self)
+    
+class RelationalExpr(BinaryExpr):
+    def __init__(self, left: Expr, operator: str, right: Expr):
+        super().__init__(left, operator, right)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_relational_expr(self)
+    
+class AddExpr(BinaryExpr):
+    def __init__(self, left: Expr, operator: str, right: Expr):
+        super().__init__(left, operator, right)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_add_expr(self)
+    
+class ModulusExpr(BinaryExpr):
+    def __init__(self, left: Expr,  right: Expr):
+        super().__init__(left, '%', right)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_modulus_expr(self)
+
+class MulExpr(BinaryExpr):
+    def __init__(self, left: Expr, operator: str, right: Expr):
+        super().__init__(left, operator, right)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_mul_expr(self)
 
 class UnaryExpr(Expr):
     def __init__(self, expr: Expr):
         self.expr: Expr = expr
 
-    def accept(self, i: Interpreter) -> float:
-        return i.execute_unary_expr(self)
+class NegateExpr(UnaryExpr):
+    def __init__(self, expr: Expr):
+        super().__init__(expr)
 
-class LiteralExpr(Expr):
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_negate_expr(self)
+    
+class NotExpr(UnaryExpr):
+    def __init__(self, expr: Expr):
+        super().__init__(expr)
+
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_not_expr(self)
+
+class Primary(Expr):
+    pass
+class NumberNode(Primary):
     def __init__(self, value: float):
         self.value: float = value
 
     def accept(self, i: Interpreter) -> float:
-        return i.execute_literal_expr(self)
+        return i.execute_number_node(self)
+    
+class BooleanNode(Primary):
+    def __init__(self, value: bool):
+        self.value : bool = value
 
-class IdentifierExpr(Expr):
+    def accept(self, i: Interpreter) -> float:
+        return i.execute_bool_node(self)
+
+class IdentifierNode(Expr):
     def __init__(self, word: str):
         self.word = word
 
@@ -102,7 +165,7 @@ class Parser:
 
     @property
     def end_of_tokens(self) -> bool:
-        return (True if self.index >= len(self.tokens) else False)
+        return isinstance(self.current_token, EOFToken)
 
     def move_pointer(self) -> None:
         self.index += 1
@@ -117,8 +180,7 @@ class Parser:
             self.script.append(self.parse_decl())
 
     def parse_decl(self) -> Stmt:
-
-        if isinstance(self.current_token, IdentifierToken):
+        if isinstance(self.current_token, Identifier):
             if self.current_token.word == 'print':
                 print_stmt : Stmt = self.parse_print_stmt()
                 return print_stmt
@@ -133,92 +195,163 @@ class Parser:
 
     def parse_print_stmt(self) -> PrintStmt:
         self.move_pointer()
-        e : Expr = self.parse_expr()
+        e : Expr = self.parse_assignment()
         return PrintStmt(e)
     
     def parse_let_stmt(self) -> LetDecl:
         self.move_pointer()
-        if isinstance(self.current_token, IdentifierToken):
+        if isinstance(self.current_token, Identifier):
             name = self.current_token.word
         else:
-            print("Syntax Error: Expected a word after 'let'")
+            print("Syntax Error: Expected a variable name after 'let'")
             sys.exit()
         
         self.move_pointer()
-        if (not self.end_of_tokens) and isinstance(self.current_token, EqualityToken):
+        if (not self.end_of_tokens) and isinstance(self.current_token, AssignmentOP):
             self.move_pointer()
-            e : Expr = self.parse_expr()
+            e : Expr = self.parse_assignment()
             return LetDecl(name, e)
         
         return LetDecl(name, None)
 
     def parse_assignment(self) -> Expr:
-        lvalue: Expr = self.parse_expr()
+        lvalue: Expr = self.parse_logical_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, EqualityToken) and isinstance(lvalue, IdentifierExpr):
+        if (not self.end_of_tokens) and isinstance(self.current_token, AssignmentOP) and isinstance(lvalue, IdentifierNode):
             self.move_pointer()
-            rvalue: Expr = self.parse_expr()
-            return AssignmentExpr(lvalue.word, rvalue)
+            rvalue: Expr = self.parse_logical_expr()
+            return Assignment(lvalue.word, rvalue)
         
         return lvalue
+    
+    def parse_logical_expr(self) -> Expr:
+        left: Expr = self.parse_equality_expr()
 
-    def parse_expr(self) -> Expr:
-        left: Expr = self.parse_factor()
-
-        if (not self.end_of_tokens) and isinstance(self.current_token, OperatorToken) and self.current_token.op in '+-':
+        if (not self.end_of_tokens) and isinstance(self.current_token, LogicalOP):
             operator: str = self.current_token.op
             self.move_pointer()
-            right: Expr = self.parse_expr()
-
-            return BinaryExpr(left, operator, right)
-
+            right: Expr = self.parse_logical_expr()
+            return LogicalExpr(left, operator, right)
+        
         return left
-        
-    def parse_factor(self) -> Expr:
-        left: Expr = self.parse_term()
-        
-        if (not self.end_of_tokens) and isinstance(self.current_token, OperatorToken) and self.current_token.op in '*/':
+    
+    def parse_equality_expr(self) -> Expr:
+        left: Expr = self.parse_relational_expr()
+
+        if (not self.end_of_tokens) and isinstance(self.current_token, EqualityOP):
             operator: str = self.current_token.op
             self.move_pointer()
-            right: Expr = self.parse_factor()
-
-            return BinaryExpr(left, operator, right)
-
-        return left
-
-    def parse_term(self) -> Expr:
-
-        # If we reached the end of list of tokens
-        if (self.end_of_tokens):
-            return LiteralExpr(0)
-
-        if isinstance(self.current_token, NumericToken):
-            literal: LiteralExpr = LiteralExpr(self.current_token.value)
-            self.move_pointer()
-            return literal
+            right: Expr = self.parse_equality_expr()
+            return EqualityExpr(left, operator, right)
         
-        elif isinstance(self.current_token, IdentifierToken):
-            identifier: IdentifierExpr = IdentifierExpr(self.current_token.word)
-            self.move_pointer()
-            return identifier
+        return left
+    
+    def parse_relational_expr(self) -> Expr:
+        left: Expr = self.parse_add_expr()
 
-        elif isinstance(self.current_token, OperatorToken) and self.current_token.op == '-':
+        if (not self.end_of_tokens) and isinstance(self.current_token, RelationalOP):
+            operator: str = self.current_token.op
             self.move_pointer()
-            term: Expr = self.parse_term()
-            return UnaryExpr(term)
+            right: Expr = self.parse_relational_expr()
+            return RelationalExpr(left, operator, right)
+        
+        return left
+    
+    def parse_add_expr(self) -> Expr:
+        left: Expr = self.parse_modulo_expr()
 
-        elif isinstance(self.current_token, ParenToken) and self.current_token.paren == '(':
+        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op in '+-':
+            operator: str = self.current_token.op
             self.move_pointer()
-            expr: Expr = self.parse_expr()
+            right: Expr = self.parse_add_expr()
+            return AddExpr(left, operator, right)
+        
+        return left
+    
+    def parse_modulo_expr(self) -> Expr:
+        left: Expr = self.parse_mul_expr()
 
-            if (not isinstance(self.current_token, ParenToken)) or (self.current_token.paren != ')'):
-                print("Expected a ')'")
+        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op == '%':
+            self.move_pointer()
+            right: Expr = self.parse_modulo_expr()
+            return ModulusExpr(left, right)
+        
+        return left
+    
+    def parse_mul_expr(self) -> Expr:
+        left: Expr = self.parse_unary_expr()
+
+        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op in '*/':
+            operator: str = self.current_token.op
+            self.move_pointer()
+            right: Expr = self.parse_mul_expr()
+            return MulExpr(left, operator, right)
+        
+        return left
+    
+    def parse_unary_expr(self) -> Expr:
+        if isinstance(self.current_token, NotOP):
+            self.move_pointer()
+            e: Expr = self.parse_unary_expr()
+            return NotExpr(e)
+        
+        elif isinstance(self.current_token, MathOP):
+            if self.current_token.op == '-':
+                self.move_pointer()
+                try:
+                    expr: Expr = self.parse_unary_expr()
+                    return NegateExpr(expr)
+                except:
+                    print("Syntax Error: Expected an expression after -")
+                    sys.exit()
+                
+            
+            elif self.current_token.op == '+':
+                self.move_pointer()
+                try:
+                    e2: Expr = self.parse_unary_expr()
+                    return e2
+                except:
+                    print("Syntax Error: Expected an expression after +")
+                    sys.exit()
+            else:
+                print(f"Synatx Error: Can't use {self.current_token.op} as a unary operator")
                 sys.exit()
-        
-            self.move_pointer()
-            return expr
-        
-        else:
-            print("Invalid Syntax in parse_terms")
+
+        return self.parse_primary_expr()
+    
+    def parse_primary_expr(self) -> Expr:
+        # If there is no token to work with return 0
+        if (self.end_of_tokens):
+            print("Syntax Error in parsing primary expressions")
             sys.exit()
 
+        elif isinstance(self.current_token, NumberToken):
+            n: NumberNode = NumberNode(self.current_token.value)
+            self.move_pointer()
+            return n
+        
+        elif isinstance(self.current_token, Identifier):
+            i: IdentifierNode = IdentifierNode(self.current_token.word)
+            self.move_pointer()
+            return i
+        
+        elif isinstance(self.current_token, Boolean):
+            b: BooleanNode = BooleanNode(self.current_token.value)
+            self.move_pointer()
+            return b
+        
+        elif isinstance(self.current_token, Parenthesis) and self.current_token.symbol == '(':
+            self.move_pointer()
+            e : Expr = self.parse_assignment()
+
+            if not isinstance(self.current_token, Parenthesis) or self.current_token.symbol != ')':
+                print("Expected a )")
+                sys.exit()
+
+            self.move_pointer()
+            return e
+        
+        else:
+            print("Invalid syntax found in the parse_primary function")
+            sys.exit()
