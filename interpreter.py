@@ -1,8 +1,7 @@
 from __future__ import annotations
 from parser import *
 from scanner import *
-from typing import List, Optional
-import sys
+from typing import List
 
 class Interpreter:
     def __init__(self):
