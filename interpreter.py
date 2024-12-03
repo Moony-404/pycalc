@@ -80,6 +80,9 @@ class Interpreter:
 
         if expr.operator == '*':
             return l * r
+        elif r == 0:
+            print("Error: Division by Zero")
+            sys.exit()
         else:
             return l / r
         
