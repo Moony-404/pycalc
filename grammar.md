@@ -27,10 +27,15 @@ allows the parser to notice silly mistakes like passing a statement to `print` o
 So read the following lines as `expressionStmt` contains an assignment expression instead of being an expression. An expression is
 composed inside the `expressionStmt` instead of being used in place of a one.
 
+```
+letStatement : let IDENTIFIER '=' assignment ';';
+printStmt : 'print' assignment ';'
+```
+
 ```text
 expressionStmt : assignment;
 
-assignment : logicalExpr ('=' assignment)? '\n' | logicalExpr '\n' ;
+assignment : logicalExpr ('=' assignment)? ';' | logicalExpr ';' ;
 ```
 
 The `lvalue` of an assignment expression can only be a subset of all possible expression. Right now, it can only be an identifier which
@@ -49,9 +54,9 @@ modExpr : mulExpr '%' modExpr | mulExpr;
 
 mulExpr : unaryExpr ('*'|'/') mulExpr | unaryExpr;
 
-unaryExpr : '-' primary | 'not' primary | primary;
+unaryExpr : '-' unaryExpr | 'not' unaryExpr | primary;
 
-primary : NUMBER | IDENTIFIER | STRING | BOOLEAN | '('logical Expr')';
+primary : NUMBER | IDENTIFIER | BOOLEAN | '('logical Expr')';
 ```
 
 What are all the tokens needed for this simple language
