@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import List, Optional
+from interpreter import Interpreter
 import sys
+
 
 # Nodes of the AST, to be created by Recursive Descent Parsing
 
@@ -148,3 +150,4 @@ class IdentifierNode(Expr):
             return value
         except KeyError:
             print(f"Undefined variable '{self.word}'")
+            return 0
