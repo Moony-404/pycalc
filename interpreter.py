@@ -7,29 +7,85 @@ class Interpreter:
     def __init__(self):
         self.scanner: Scanner= Scanner()
         self.parser: Parser = Parser()
-        # A dictionary to contain all the variables and their bindings
-        self.environment: dict = {}
+        self.symbols: dict = {}
+        
+        self.exec_functions = [
+            self.execute_identifier_node, 
+            self.execute_bool_node,
+            self.execute_number_node,
+            
+            self.execute_not_expr,
+            self.execute_negate_expr,
+            self.execute_mul_expr,
+            
+            self.execute_modulus_expr,
+            self.execute_add_expr,
+            self.execute_relational_expr,
+            
+            self.execute_equality_expr,
+            self.execute_logical_expr,
+            self.execute_assignment_expr,
+            
+            self.execute_print_stmt,
+            self.execute_expr_stmt,
+            self.execute_let_stmt
+        ]
 
     def run(self) -> None:
         while (True):
             user_input: str = input("> ")
+            user_input = user_input.strip()
             if user_input == 'exit' or user_input == 'quit':
                 break
             self.scanner.scan(user_input)
-            # print(self.scanner.tokens)
             self.parser.parse(self.scanner.tokens)
-            self.execute(self.parser.script)
+            self.execute_script(self.parser.script)
 
-    def execute(self, script: List[Stmt]) -> None:
+    def execute_script(self, script: List[Stmt]) -> None:
         for stmt in script:
-            value = stmt.accept(self)
-            if value is None:
-                return
-            print(value)
+            ID = stmt.AST_ID
+            if ID == -1:
+                print(f"[Error] Invalid statement")
+                continue
+
+            handler = self.exec_functions[ID]
+            handler(stmt)
+        
+    def execute_let_stmt(self, stmt: LetStmt) -> None:
+        if stmt.expr is None:
+            return None
+        value: float = self.execute_expr(stmt.expr)
+        self.symbols[stmt.name] = value
+
+    def execute_expr_stmt(self, stmt: ExprStmt) -> None:
+        value = self.execute_expr(stmt.expr)
+        # For debug purposes
+        print(value)
+    
+    def execute_print_stmt(self, stmt: PrintStmt) -> None:
+        value = self.execute_expr(stmt.expr)
+        print(value)
+
+    def execute_expr(self, expr: Expr) -> float:
+        ID = expr.AST_ID
+        if ID == -1:
+            print(f"[Error] Invalid Expression")
+
+        handler = self.exec_functions[ID]
+        return handler(expr)
+
+    def execute_assignment_expr(self, assign: Assignment) -> float:
+        if assign.word in self.symbols:
+            value : float = self.execute_expr(assign)
+            self.symbols[assign.word] = value
+            return value
+        
+        print(f"[Error] Variable {assign.word} does not exist")
+        return 0
 
     def execute_logical_expr(self, expr: LogicalExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         if expr.operator == 'and':
             return float(l and r)
@@ -37,8 +93,8 @@ class Interpreter:
         return float(l or r)
     
     def execute_equality_expr(self, expr: EqualityExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         if expr.operator == '==':
             return float(l == r)
@@ -46,8 +102,8 @@ class Interpreter:
         return float(l != r)
     
     def execute_relational_expr(self, expr: RelationalExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         if expr.operator == '<':
             return float(l < r)
@@ -59,8 +115,8 @@ class Interpreter:
             return float(l >= r)
         
     def execute_add_expr(self, expr: AddExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         if expr.operator == '+':
             return l + r
@@ -68,14 +124,14 @@ class Interpreter:
             return l - r
         
     def execute_modulus_expr(self, expr: ModulusExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         return int(l) % int(r)
     
     def execute_mul_expr(self, expr: MulExpr) -> float:
-        l: float = expr.left.accept(self)
-        r: float = expr.right.accept(self)
+        l: float = self.execute_expr(expr.left)
+        r: float = self.execute_expr(expr.right)
 
         if expr.operator == '*':
             return l * r
@@ -86,11 +142,11 @@ class Interpreter:
             return l / r
         
     def execute_negate_expr(self, expr: NegateExpr) -> float:
-        value: float = -1 * expr.expr.accept(self)
+        value: float = -1 * self.execute_expr(expr.expr)
         return value
     
     def execute_not_expr(self, expr: NotExpr) -> float:
-        value: float = not expr.expr.accept(self)
+        value: float = not self.execute_expr(expr.expr)
         return float(value)
 
     def execute_number_node(self, n: NumberNode) -> float:
@@ -98,3 +154,11 @@ class Interpreter:
     
     def execute_bool_node(self, b: BooleanNode) -> float:
         return float(b.value)
+    
+    def execute_identifier_node(self, iden: IdentifierNode) -> float:
+        try:
+            value = self.symbols[iden.word]
+            return value
+        except KeyError:
+            print(f"[Error] Undefined variable '{iden.word}'")
+            return 0

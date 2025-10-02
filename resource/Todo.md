@@ -1,0 +1,3 @@
+- Remove Visitor Pattern
+- Classify errors into lexical, syntax and semantic errors
+- Make a robust error-detection system based on exceptions provided by python

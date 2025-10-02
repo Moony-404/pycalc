@@ -49,7 +49,7 @@ class Parser:
         e : Expr = self.parse_assignment()
         return PrintStmt(e)
     
-    def parse_let_stmt(self) -> LetDecl:
+    def parse_let_stmt(self) -> LetStmt:
         self.move_pointer()
         if isinstance(self.current_token, Identifier):
             name = self.current_token.word
@@ -61,9 +61,9 @@ class Parser:
         if (not self.end_of_tokens) and isinstance(self.current_token, AssignmentOP):
             self.move_pointer()
             e : Expr = self.parse_assignment()
-            return LetDecl(name, e)
+            return LetStmt(name, e)
         
-        return LetDecl(name, None)
+        return LetStmt(name, None)
 
     def parse_assignment(self) -> Expr:
         lvalue: Expr = self.parse_logical_expr()
