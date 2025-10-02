@@ -133,21 +133,21 @@ class Scanner:
 
         while self.inside_string():
             if self.current_char in Scanner.numbers:
-                self.scan_number()  # done 
+                self.scan_number()  
             elif self.current_char == '"':
-                self.scan_string() # done
+                self.scan_string() 
             elif self.current_char.isalpha():
-                self.scan_identifier() # done
+                self.scan_identifier() 
             elif self.current_char in Scanner.operators:
-                self.scan_operator() # done
+                self.scan_operator() 
             elif self.current_char in Scanner.parenthesis:
-                self.scan_parenthesis() # done
+                self.scan_parenthesis() 
             elif self.current_char == '=':
-                self.scan_equal_symbol() # done
+                self.scan_equal_symbol() 
             elif self.current_char in Scanner.whitespaces:
-                self.index += 1 # done
+                self.index += 1 
             elif self.current_char in Scanner.braces:
-                self.scan_brace() #done
+                self.scan_brace() 
             elif self.current_char == ';':
                 self.scan_semicolon()
             else:
@@ -157,3 +157,4 @@ class Scanner:
                 break
 
         self.tokens.append(EOFToken())
+        return

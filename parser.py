@@ -3,7 +3,6 @@ import sys
 from typing import List
 from scanner import *
 from AST import *
-# from interpreter import Interpreter
 
 class Parser:
     def __init__(self):

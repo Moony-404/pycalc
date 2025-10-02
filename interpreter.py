@@ -22,11 +22,10 @@ class Interpreter:
 
     def execute(self, script: List[Stmt]) -> None:
         for stmt in script:
-            if isinstance(stmt, ExprStmt):
-                value = stmt.accept(self)
-                print(value)
-            else:
-                stmt.accept(self)
+            value = stmt.accept(self)
+            if value is None:
+                return
+            print(value)
 
     def execute_logical_expr(self, expr: LogicalExpr) -> float:
         l: float = expr.left.accept(self)

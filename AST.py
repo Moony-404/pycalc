@@ -148,4 +148,3 @@ class IdentifierNode(Expr):
             return value
         except KeyError:
             print(f"Undefined variable '{self.word}'")
-            sys.exit()
