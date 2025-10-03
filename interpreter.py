@@ -41,7 +41,7 @@ class Interpreter:
             self.parser.parse(self.scanner.tokens)
             self.execute_script(self.parser.script)
 
-    def execute_script(self, script: List[Stmt]) -> None:
+    def execute_script(self, script: List[ast.Stmt]) -> None:
         for stmt in script:
             ID = stmt.AST_ID
             if ID == -1:
@@ -51,22 +51,22 @@ class Interpreter:
             handler = self.exec_functions[ID]
             handler(stmt)
         
-    def execute_let_stmt(self, stmt: LetStmt) -> None:
+    def execute_let_stmt(self, stmt: ast.LetStmt) -> None:
         if stmt.expr is None:
             return None
         value: float = self.execute_expr(stmt.expr)
         self.symbols[stmt.name] = value
 
-    def execute_expr_stmt(self, stmt: ExprStmt) -> None:
+    def execute_expr_stmt(self, stmt: ast.ExprStmt) -> None:
         value = self.execute_expr(stmt.expr)
         # For debug purposes
         print(value)
     
-    def execute_print_stmt(self, stmt: PrintStmt) -> None:
+    def execute_print_stmt(self, stmt: ast.PrintStmt) -> None:
         value = self.execute_expr(stmt.expr)
         print(value)
 
-    def execute_expr(self, expr: Expr) -> float:
+    def execute_expr(self, expr: ast.Expr) -> float:
         ID = expr.AST_ID
         if ID == -1:
             print(f"[Error] Invalid Expression")
@@ -74,7 +74,7 @@ class Interpreter:
         handler = self.exec_functions[ID]
         return handler(expr)
 
-    def execute_assignment_expr(self, assign: Assignment) -> float:
+    def execute_assignment_expr(self, assign: ast.Assignment) -> float:
         if assign.word in self.symbols:
             value : float = self.execute_expr(assign)
             self.symbols[assign.word] = value
@@ -83,7 +83,7 @@ class Interpreter:
         print(f"[Error] Variable {assign.word} does not exist")
         return 0
 
-    def execute_logical_expr(self, expr: LogicalExpr) -> float:
+    def execute_logical_expr(self, expr: ast.LogicalExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
@@ -92,7 +92,7 @@ class Interpreter:
         
         return float(l or r)
     
-    def execute_equality_expr(self, expr: EqualityExpr) -> float:
+    def execute_equality_expr(self, expr: ast.EqualityExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
@@ -101,7 +101,7 @@ class Interpreter:
         
         return float(l != r)
     
-    def execute_relational_expr(self, expr: RelationalExpr) -> float:
+    def execute_relational_expr(self, expr: ast.RelationalExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
@@ -114,7 +114,7 @@ class Interpreter:
         else:
             return float(l >= r)
         
-    def execute_add_expr(self, expr: AddExpr) -> float:
+    def execute_add_expr(self, expr: ast.AddExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
@@ -123,13 +123,13 @@ class Interpreter:
         else:
             return l - r
         
-    def execute_modulus_expr(self, expr: ModulusExpr) -> float:
+    def execute_modulus_expr(self, expr: ast.ModulusExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
         return int(l) % int(r)
     
-    def execute_mul_expr(self, expr: MulExpr) -> float:
+    def execute_mul_expr(self, expr: ast.MulExpr) -> float:
         l: float = self.execute_expr(expr.left)
         r: float = self.execute_expr(expr.right)
 
@@ -141,21 +141,21 @@ class Interpreter:
         else:
             return l / r
         
-    def execute_negate_expr(self, expr: NegateExpr) -> float:
+    def execute_negate_expr(self, expr: ast.NegateExpr) -> float:
         value: float = -1 * self.execute_expr(expr.expr)
         return value
     
-    def execute_not_expr(self, expr: NotExpr) -> float:
+    def execute_not_expr(self, expr: ast.NotExpr) -> float:
         value: float = not self.execute_expr(expr.expr)
         return float(value)
 
-    def execute_number_node(self, n: NumberNode) -> float:
+    def execute_number_node(self, n: ast.NumberNode) -> float:
         return n.value
     
-    def execute_bool_node(self, b: BooleanNode) -> float:
+    def execute_bool_node(self, b: ast.BooleanNode) -> float:
         return float(b.value)
     
-    def execute_identifier_node(self, iden: IdentifierNode) -> float:
+    def execute_identifier_node(self, iden: ast.IdentifierNode) -> float:
         try:
             value = self.symbols[iden.word]
             return value
