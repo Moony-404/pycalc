@@ -9,6 +9,18 @@ class Parser:
         self.script: List[ast.Stmt] = []
         self.index: int = 0
         self.tokens: List[Token] = []
+        self.error = False
+
+    def log(self, message):
+        self.error = True
+        print(f"[Syntax Error] {message} : {self.current_token.line}")
+
+    def synchronize(self):
+        while not self.end_of_tokens:
+            if self.current_token.type == TokenType.SEMICOLON:
+                self.index += 1
+                break
+            self.index += 1
 
     @property
     def current_token(self) -> Token:
@@ -16,30 +28,34 @@ class Parser:
 
     @property
     def end_of_tokens(self) -> bool:
-        return isinstance(self.current_token, EOFToken)
+        return self.current_token.type == TokenType.EOF
 
     def move_pointer(self) -> None:
         self.index += 1
 
-    def parse(self, tokens: List[Token]):
-        # Initialize the state of the parser
-        self.tokens = tokens
-        self.index = 0
+    def parse(self, tokens: List[Token]) -> None:
         self.script = []
+        self.index = 0
+        self.tokens = tokens
+        self.error = False
 
         if not self.end_of_tokens:
-            self.script.append(self.parse_decl())
+            node = self.parse_decl()
+            if node is not None:
+                self.script.append(node)
 
-        assert self.end_of_tokens, "[Syntax Error] Invalid syntax"
+        if not self.end_of_tokens:
+            self.log("Invalid syntax, extra tokens")
+            self.synchronize()
 
-    def parse_decl(self) -> ast.Stmt:
-        if isinstance(self.current_token, Identifier):
-            if self.current_token.word == 'print':
+    def parse_decl(self) -> Optional[ast.Stmt]:
+        if self.current_token.type == TokenType.IDENTIFIER:
+            if  self.current_token.lexeme == 'print':
                 print_stmt : ast.Stmt = self.parse_print_stmt()
                 return print_stmt
             
-            elif self.current_token.word == 'let':
-                let_stmt : ast.Stmt = self.parse_let_stmt()
+            elif self.current_token.lexeme == 'let':
+                let_stmt = self.parse_let_stmt()
                 return let_stmt
         
         expr : ast.Expr = self.parse_assignment()
@@ -51,16 +67,17 @@ class Parser:
         e : ast.Expr = self.parse_assignment()
         return ast.PrintStmt(e)
     
-    def parse_let_stmt(self) -> ast.LetStmt:
+    def parse_let_stmt(self) -> Optional[ast.LetStmt]:
         self.move_pointer()
-        if isinstance(self.current_token, Identifier):
-            name = self.current_token.word
+        if self.current_token.type == TokenType.IDENTIFIER:
+            name = self.current_token.lexeme
+            self.move_pointer()
         else:
-            print("Syntax Error: Expected a variable name after 'let'")
-            sys.exit()
+            self.log("Expected an identifier after let")
+            self.synchronize()
+            return 
         
-        self.move_pointer()
-        if (not self.end_of_tokens) and isinstance(self.current_token, AssignmentOP):
+        if not self.end_of_tokens and self.current_token.type == TokenType.ASSIGNMENT:
             self.move_pointer()
             e : ast.Expr = self.parse_assignment()
             return ast.LetStmt(name, e)
@@ -70,7 +87,7 @@ class Parser:
     def parse_assignment(self) -> ast.Expr:
         lvalue: ast.Expr = self.parse_logical_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, AssignmentOP) and isinstance(lvalue, ast.IdentifierNode):
+        if not self.end_of_tokens and self.current_token.type == TokenType.ASSIGNMENT and isinstance(lvalue, ast.IdentifierNode):
             self.move_pointer()
             rvalue: ast.Expr = self.parse_logical_expr()
             return ast.Assignment(lvalue.word, rvalue)
@@ -80,8 +97,8 @@ class Parser:
     def parse_logical_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_equality_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, LogicalOP):
-            operator: str = self.current_token.op
+        if not self.end_of_tokens and self.current_token.type == TokenType.LOGICAL_OP:
+            operator: str = self.current_token.lexeme
             self.move_pointer()
             right: ast.Expr = self.parse_logical_expr()
             return ast.LogicalExpr(left, operator, right)
@@ -91,8 +108,8 @@ class Parser:
     def parse_equality_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_relational_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, EqualityOP):
-            operator: str = self.current_token.op
+        if not self.end_of_tokens and self.current_token.type == TokenType.EQUALITY_OP:
+            operator: str = self.current_token.lexeme
             self.move_pointer()
             right: ast.Expr = self.parse_equality_expr()
             return ast.EqualityExpr(left, operator, right)
@@ -102,8 +119,8 @@ class Parser:
     def parse_relational_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_add_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, RelationalOP):
-            operator: str = self.current_token.op
+        if not self.end_of_tokens and self.current_token.type == TokenType.RELATIONAL_OP:
+            operator: str = self.current_token.lexeme
             self.move_pointer()
             right: ast.Expr = self.parse_relational_expr()
             return ast.RelationalExpr(left, operator, right)
@@ -113,8 +130,8 @@ class Parser:
     def parse_add_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_modulo_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op in '+-':
-            operator: str = self.current_token.op
+        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '+-':
+            operator: str = self.current_token.lexeme
             self.move_pointer()
             right: ast.Expr = self.parse_add_expr()
             return ast.AddExpr(left, operator, right)
@@ -124,7 +141,7 @@ class Parser:
     def parse_modulo_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_mul_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op == '%':
+        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme == '%':
             self.move_pointer()
             right: ast.Expr = self.parse_modulo_expr()
             return ast.ModulusExpr(left, right)
@@ -134,8 +151,8 @@ class Parser:
     def parse_mul_expr(self) -> ast.Expr:
         left: ast.Expr = self.parse_unary_expr()
 
-        if (not self.end_of_tokens) and isinstance(self.current_token, MathOP) and self.current_token.op in '*/':
-            operator: str = self.current_token.op
+        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '*/':
+            operator: str = self.current_token.lexeme
             self.move_pointer()
             right: ast.Expr = self.parse_mul_expr()
             return ast.MulExpr(left, operator, right)
@@ -143,23 +160,23 @@ class Parser:
         return left
     
     def parse_unary_expr(self) -> ast.Expr:
-        if isinstance(self.current_token, NotOP):
+        if self.current_token.type == TokenType.NOT_OP:
             self.move_pointer()
-            e: ast.Expr = self.parse_unary_expr()
+            e = self.parse_unary_expr()
             return ast.NotExpr(e)
         
-        elif isinstance(self.current_token, MathOP):
-            if self.current_token.op == '-':
+        elif self.current_token.type == TokenType.ARITHMETIC_OP:
+            if self.current_token.lexeme == '-':
                 self.move_pointer()
                 try:
-                    expr: ast.Expr = self.parse_unary_expr()
+                    expr = self.parse_unary_expr()
                     return ast.NegateExpr(expr)
                 except:
                     print("Syntax Error: Expected an expression after -")
                     sys.exit()
                 
             
-            elif self.current_token.op == '+':
+            elif self.current_token.lexeme == '+':
                 self.move_pointer()
                 try:
                     e2: ast.Expr = self.parse_unary_expr()
@@ -168,7 +185,7 @@ class Parser:
                     print("Syntax Error: Expected an expression after +")
                     sys.exit()
             else:
-                print(f"Synatx Error: Can't use {self.current_token.op} as a unary operator")
+                print(f"Synatx Error: Can't use {self.current_token.lexeme} as a unary operator")
                 sys.exit()
 
         return self.parse_primary_expr()
@@ -179,32 +196,33 @@ class Parser:
             print("Syntax Error in parsing primary expressions")
             sys.exit()
 
-        elif isinstance(self.current_token, NumberToken):
-            n: ast.NumberNode = ast.NumberNode(self.current_token.value)
+        elif self.current_token.type ==  TokenType.REAL:
+            n: ast.NumberNode = ast.NumberNode(float(self.current_token.lexeme))
             self.move_pointer()
             return n
         
-        elif isinstance(self.current_token, Identifier):
-            i: ast.IdentifierNode = ast.IdentifierNode(self.current_token.word)
+        elif self.current_token.type == TokenType.IDENTIFIER:
+            i: ast.IdentifierNode = ast.IdentifierNode(self.current_token.lexeme)
             self.move_pointer()
             return i
         
-        elif isinstance(self.current_token, Boolean):
-            b: ast.BooleanNode = ast.BooleanNode(self.current_token.value)
+        elif self.current_token.type == TokenType.BOOLEAN:
+            b: ast.BooleanNode = ast.BooleanNode(bool(self.current_token.lexeme))
             self.move_pointer()
             return b
         
-        elif isinstance(self.current_token, Parenthesis) and self.current_token.symbol == '(':
+        elif self.current_token.type == TokenType.PARENTHESIS and self.current_token.lexeme == '(':
             self.move_pointer()
             e : ast.Expr = self.parse_assignment()
 
-            if not isinstance(self.current_token, Parenthesis) or self.current_token.symbol != ')':
-                print("Expected a )")
-                sys.exit()
+            if not self.current_token.type == TokenType.PARENTHESIS or self.current_token.lexeme != ')':
+                self.log("Expected a ')'")
+                self.synchronize()
 
             self.move_pointer()
             return e
         
         else:
-            print("Invalid syntax found in the parse_primary function")
+            self.log("Invalid syntax")
+            self.synchronize()
             sys.exit()

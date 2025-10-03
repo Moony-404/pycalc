@@ -5,7 +5,7 @@ from typing import List
 
 class Interpreter:
     def __init__(self):
-        self.scanner: Scanner= Scanner()
+        self.scanner: Lexer= Lexer()
         self.parser: Parser = Parser()
         self.symbols: dict = {}
         
@@ -37,8 +37,15 @@ class Interpreter:
             user_input = user_input.strip()
             if user_input == 'exit' or user_input == 'quit':
                 break
+
             self.scanner.scan(user_input)
+            if self.scanner.error:
+                continue
+
             self.parser.parse(self.scanner.tokens)
+            if self.parser.error:
+                continue
+                        
             self.execute_script(self.parser.script)
 
     def execute_script(self, script: List[ast.Stmt]) -> None:

@@ -23,7 +23,7 @@ class Lexer:
         print(f"[Lexical Error] {message} : {self.line}")
 
     def synchronize(self, alphabet: str, discard = True) -> None: 
-        while self.inside_source:
+        while self.inside_source():
             condition = self.current_char in alphabet
             condition = not condition if discard else condition
             if condition:
@@ -31,9 +31,11 @@ class Lexer:
             self.index += 1
         
     def scan(self, text: str) -> None:
+        self.tokens.clear()
         self.source = text
         self.index = 0
-        self.tokens.clear()
+        self.line = 1
+        self.error = False
 
         while self.inside_source():
             if self.current_char in Lexer.NUMBERS:
@@ -156,6 +158,7 @@ class Lexer:
     def scan_arithmetic_operator(self) -> None:
         t : Token = Token(TokenType.ARITHMETIC_OP, self.index, 1, self.source, self.line)
         self.tokens.append(t)
+        self.index += 1
 
     def scan_relational_operator(self) -> None:
         
@@ -187,6 +190,6 @@ class Lexer:
             self.tokens.append(t)
             self.index += 2
         else:
-            t: Token = Token(TokenType.ARITHMETIC_OP, self.index, 1, self.source, self.line) 
+            t: Token = Token(TokenType.ASSIGNMENT, self.index, 1, self.source, self.line) 
             self.tokens.append(t)
             self.index += 1
