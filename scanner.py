@@ -1,160 +1,192 @@
-import sys
-from typing import List, Optional
 from _token import *
+from typing import List, Optional
 
+class Lexer:
 
-class Scanner:
-    numbers: str = '0123456789.'
-    operators: str = '+-*/%<>!'
-    parenthesis: str = '()'
-    braces: str = '{}'
-    whitespaces: str = ' \t\n'
+    NUMBERS:        str = '0123456789.'
+    ARITHMETIC:     str = '+-*/%'
+    RELATIONAL:     str = '<>'
+    NOT:            str = '!'
+    PARENTHESIS:    str = '()'
+    BRACES:         str = '{}'
+    WS:             str = ' \t'
 
     def __init__(self):
         self.tokens: List[Token] = []
-        self.string: str = ''
+        self.source: str = ''
         self.index: int = 0
+        self.line = 1
+        self.error = False
 
+    def log(self, message: str) -> None:
+        self.error = True
+        print(f"[Lexical Error] {message} : {self.line}")
 
-    def inside_string(self) -> bool:
-        return self.index < len(self.string)
+    def synchronize(self, alphabet: str, discard = True) -> None: 
+        while self.inside_source:
+            condition = self.current_char in alphabet
+            condition = not condition if discard else condition
+            if condition:
+                break
+            self.index += 1
+        
+    def scan(self, text: str) -> None:
+        self.source = text
+        self.index = 0
+        self.tokens.clear()
+
+        while self.inside_source():
+            if self.current_char in Lexer.NUMBERS:
+                self.scan_number()  
+            
+            elif self.current_char == '"':
+                self.scan_string() 
+            
+            elif self.current_char.isalpha():
+                self.scan_identifier() 
+
+            elif self.current_char in Lexer.ARITHMETIC:
+                self.scan_arithmetic_operator()
+
+            elif self.current_char in Lexer.RELATIONAL:
+                self.scan_relational_operator()
+            
+            elif self.current_char in Lexer.NOT:
+                self.scan_not_operator()
+
+            elif self.current_char in Lexer.PARENTHESIS:
+                self.scan_parenthesis() 
+            
+            elif self.current_char == '=':
+                self.scan_equal_symbol() 
+            
+            elif self.current_char in Lexer.WS:
+                self.index += 1 
+            
+            elif self.current_char in Lexer.BRACES:
+                self.scan_brace() 
+            
+            elif self.current_char == ';':
+                self.scan_semicolon()
+            
+            elif self.current_char == '\n':
+                self.line += 1
+                self.index += 1
+            
+            else:
+                self.log("Unknown symbol")
+                self.synchronize(Lexer.WS + '\n', discard = False)
+
+        self.tokens.append(Token(TokenType.EOF, self.index, 0, self.source, self.line))
+
+    def inside_source(self) -> bool:
+        return self.index < len(self.source)
 
     @property
     def current_char(self) -> str:
-        return self.string[self.index]
+        return self.source[self.index]
     
     def peek(self) -> Optional[str]:
         try:
-            next_char: str = self.string[self.index + 1]
+            next_char: str = self.source[self.index + 1]
             return next_char
         except IndexError:
             return None
     
     def scan_brace(self) -> None:
-        self.tokens.append(Brace(self.current_char))
+        t : Token = Token(TokenType.BRACE, self.index, 1, self.source, self.line)
+        self.tokens.append(t)
         self.index += 1
 
     def scan_semicolon(self) -> None:
-        self.tokens.append(Semicolon())
+        t : Token = Token(TokenType.SEMICOLON, self.index, 1, self.source, self.line)
+        self.tokens.append(t)
         self.index += 1
 
     def scan_identifier(self) -> None:
-        '''
-        Scans an identifier. Also checks if it is a keyword
-        '''
-        word: str = ''
-        while self.inside_string() and (self.current_char.isalnum() or self.current_char == '_'):
-            word += self.current_char
+        start: int = self.index
+        while self.inside_source() and (self.current_char.isalnum() or self.current_char == '_'):
             self.index += 1
 
+        t: Token = Token(TokenType.IDENTIFIER, start, self.index - start, self.source, self.line)
+        word = self.source[start: self.index]
+
         if word == 'and' or word == 'or':
-            self.tokens.append(LogicalOP(word))
+            t.type = TokenType.LOGICAL_OP
         elif word == 'not':
-            self.tokens.append(NotOP())
-        elif word == 'True':
-            self.tokens.append(Boolean(True))
-        elif word == 'False':
-            self.tokens.append(Boolean(False))
-        else:
-            self.tokens.append(Identifier(word))
-        return
+            t.type = TokenType.NOT_OP
+        elif word == 'True' or word == 'False':
+            t.type = TokenType.BOOLEAN
+
+        self.tokens.append(t)
 
     def scan_number(self) -> None:
-        number: str = '' 
+        start: int = self.index
         decimal_count: int = 0
-        while self.inside_string() and self.current_char in Scanner.numbers:
+        
+        while self.inside_source() and self.current_char in Lexer.NUMBERS:
             if self.current_char == '.':
                 decimal_count += 1
-            number += self.current_char
+
             self.index += 1
 
         if decimal_count > 1:
-            print(f"Syntax Error: {decimal_count} decimal points in a number")
-            sys.exit()
+            self.log("Invalid number")
+            self.synchronize(Lexer.NUMBERS)
+            return   
         
-        self.tokens.append(NumberToken(float(number)))
+        t: Token = Token(TokenType.REAL, start, self.index - start, self.source, self.line)
+        self.tokens.append(t)
 
     def scan_string(self) -> None:
-        s : str = ''
+        start = self.index  
         self.index += 1
-        while self.inside_string() and self.current_char != '"':
-            s += self.current_char
+
+        while self.inside_source() and self.current_char != '"':
             self.index += 1
 
-        try:
-            if self.current_char == '"':
-                self.tokens.append(String(s))
-                self.index += 1
-        except IndexError:
-            raise SyntaxError("Expected a \" at the end of string")
-        return
-
-    def scan_operator(self) -> None:
-        math_operator = '+-*/%'
-        relational_operator = '<>'
-
-        if self.current_char in math_operator:
-            self.tokens.append(MathOP(self.current_char))
+        if self.current_char == '"':
             self.index += 1
-
-        elif self.current_char in relational_operator:
-            if self.peek() == '=':
-                self.tokens.append(RelationalOP(self.current_char + '='))
-                self.index += 2
-            else:
-                self.tokens.append(RelationalOP(self.current_char))
-                self.index += 1
+            t : Token = Token(TokenType.STRING, start, self.index - start, self.source, self.line)
+            self.tokens.append(t)
 
         else:
-            if self.peek() == '=':
-                self.tokens.append(RelationalOP('!='))
-                self.index += 2
-            else:
-                raise SyntaxError("'!' is not an operator. Did you mean 'not'?")
-        return
+            self.log("Unterminated string literal")
+
+    def scan_arithmetic_operator(self) -> None:
+        t : Token = Token(TokenType.ARITHMETIC_OP, self.index, 1, self.source, self.line)
+        self.tokens.append(t)
+
+    def scan_relational_operator(self) -> None:
+        
+        if self.peek() == '=':
+            t: Token = Token(TokenType.RELATIONAL_OP, self.index, 2, self.source, self.line)
+            self.tokens.append(t)
+            self.index += 2
+        else:
+            t : Token = Token(TokenType.RELATIONAL_OP, self.index, 1, self.source, self.line)
+            self.tokens.append(t)
+            self.index += 1
+
+    def scan_not_operator(self) -> None:
+        if self.peek() == '=':
+            t: Token = Token(TokenType.NOT_OP, self.index, 2, self.source, self.line)
+            self.tokens.append(t)
+            self.index += 2
+        else:
+            self.log("Invalid opeartor !")
 
     def scan_parenthesis(self) -> None:
-        self.tokens.append(Parenthesis(self.current_char))
+        t: Token = Token(TokenType.PARENTHESIS, self.index, 1, self.source, self.line) 
+        self.tokens.append(t)
         self.index += 1
 
     def scan_equal_symbol(self) -> None:
         if self.peek() == '=':
-            self.tokens.append(RelationalOP('=='))
+            t: Token = Token(TokenType.EQUALITY_OP, self.index, 2, self.source, self.line) 
+            self.tokens.append(t)
             self.index += 2
         else:
-            self.tokens.append(AssignmentOP())
+            t: Token = Token(TokenType.ARITHMETIC_OP, self.index, 1, self.source, self.line) 
+            self.tokens.append(t)
             self.index += 1
-    
-    def scan(self, text: str) -> None:
-        # Initialize the state of the scanner
-        self.string = text
-        self.index = 0
-        self.tokens.clear()
-
-        while self.inside_string():
-            if self.current_char in Scanner.numbers:
-                self.scan_number()  
-            elif self.current_char == '"':
-                self.scan_string() 
-            elif self.current_char.isalpha():
-                self.scan_identifier() 
-            elif self.current_char in Scanner.operators:
-                self.scan_operator() 
-            elif self.current_char in Scanner.parenthesis:
-                self.scan_parenthesis() 
-            elif self.current_char == '=':
-                self.scan_equal_symbol() 
-            elif self.current_char in Scanner.whitespaces:
-                self.index += 1 
-            elif self.current_char in Scanner.braces:
-                self.scan_brace() 
-            elif self.current_char == ';':
-                self.scan_semicolon()
-            else:
-                print("Invalid syntax")
-                # For debugging purposes, we are not clearing the token list
-                # self.tokens.clear()
-                break
-
-        self.tokens.append(EOFToken())
-        return
