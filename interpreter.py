@@ -1,4 +1,3 @@
-from __future__ import annotations
 from parser import *
 from scanner import *
 from typing import List
@@ -28,7 +27,8 @@ class Interpreter:
             
             self.execute_print_stmt,
             self.execute_expr_stmt,
-            self.execute_let_stmt
+            self.execute_let_stmt,
+            self.execute_if_stmt
         ]
 
     def repl(self) -> None:
@@ -59,7 +59,6 @@ class Interpreter:
         
         self.execute(self.parser.tree)
 
-
     def execute(self, script: List[ast.Stmt]) -> None:
         for stmt in script:
             ID = stmt.AST_ID
@@ -69,7 +68,19 @@ class Interpreter:
 
             handler = self.exec_functions[ID]
             handler(stmt)
-        
+
+    def execute_if_stmt(self, stmt: ast.IfStmt) -> None:
+        handle = self.exec_functions[stmt.condition.AST_ID]
+        condition = bool(handle(stmt.condition))
+
+        if condition and stmt.true_stmt:
+            handle = self.exec_functions[stmt.true_stmt.AST_ID]
+            handle(stmt.true_stmt)
+
+        elif stmt.false_stmt:
+            handle = self.exec_functions[stmt.false_stmt.AST_ID]
+            handle(stmt.false_stmt)
+    
     def execute_let_stmt(self, stmt: ast.LetStmt) -> None:
         if stmt.expr is None:
             return None
@@ -78,8 +89,6 @@ class Interpreter:
 
     def execute_expr_stmt(self, stmt: ast.ExprStmt) -> None:
         value = self.execute_expr(stmt.expr)
-        # For debug purposes
-        print(value)
     
     def execute_print_stmt(self, stmt: ast.PrintStmt) -> None:
         value = self.execute_expr(stmt.expr)

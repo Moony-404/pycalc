@@ -1,4 +1,3 @@
-from __future__ import annotations
 import sys
 import syntax_tree as ast
 from scanner import *
@@ -6,7 +5,7 @@ from typing import List
 
 class Parser:
     def __init__(self):
-        self.script: List[ast.Stmt] = []
+        self.tree: List[ast.Stmt] = []
         self.index: int = 0
         self.tokens: List[Token] = []
         self.error = False
@@ -45,7 +44,7 @@ class Parser:
         self.consume(TokenType.SEMICOLON, "Expected a semicolon")
 
     def parse(self, tokens: List[Token]) -> None:
-        self.script = []
+        self.tree.clear()
         self.index = 0
         self.tokens = tokens
         self.error = False
@@ -53,26 +52,44 @@ class Parser:
         while not self.end_of_tokens:
             node = self.parse_stmt()
             if node is not None:
-                self.script.append(node)
-
-        if not self.end_of_tokens:
-            self.log("Invalid syntax, unnecessay tokens")
+                self.tree.append(node)
 
     def parse_stmt(self) -> Optional[ast.Stmt]:
         if self.current_token.type == TokenType.IDENTIFIER:
+
             if  self.current_token.lexeme == 'print':
-                print_stmt : ast.Stmt = self.parse_print_stmt()
-                return print_stmt
+                stmt = self.parse_print_stmt()
+                return stmt
             
             elif self.current_token.lexeme == 'let':
-                let_stmt = self.parse_let_stmt()
-                return let_stmt
+                stmt = self.parse_let_stmt()
+                return stmt
+                        
+            elif self.current_token.lexeme == 'if':
+                stmt = self.parse_if_stmt()
+                return stmt                
         
         expr : ast.Expr = self.parse_assignment()
         expr_stmt : ast.ExprStmt = ast.ExprStmt(expr)
         self.consume_semicolon()
-        
         return expr_stmt
+    
+
+    def parse_if_stmt(self):
+        self.move_pointer()
+        
+        e : ast.Expr = self.parse_assignment()
+        self.consume(TokenType.COLON, "Expected a :")
+
+        p : Optional[ast.Stmt] = self.parse_stmt()
+        q : Optional[ast.Stmt] = None
+
+        if self.current_token.lexeme == 'else':
+            self.move_pointer()
+            self.consume(TokenType.COLON, "Expected a :")
+            q = self.parse_stmt()
+
+        return ast.IfStmt(e, p, q)
 
     def parse_print_stmt(self) -> ast.PrintStmt:
         self.move_pointer()

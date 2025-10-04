@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import List, Optional
 import sys
 
@@ -22,6 +21,14 @@ class UnaryExpr(Expr):
 class Primary(Expr):
     ...
 
+class IfStmt(Stmt):
+    AST_ID = 15
+
+    def __init__(self, expr: Expr, p: Optional[Stmt], q: Optional[Stmt]):
+        self.condition = expr
+        self.true_stmt = p
+        self.false_stmt = q
+        
 class LetStmt(Stmt):
     AST_ID = 14
 

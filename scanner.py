@@ -70,6 +70,9 @@ class Lexer:
             
             elif self.current_char == ';':
                 self.scan_semicolon()
+
+            elif self.current_char == ':':
+                self.scan_colon()
             
             elif self.current_char == '\n':
                 self.line += 1
@@ -102,6 +105,11 @@ class Lexer:
 
     def scan_semicolon(self) -> None:
         t : Token = Token(TokenType.SEMICOLON, self.index, 1, self.source, self.line)
+        self.tokens.append(t)
+        self.index += 1
+
+    def scan_colon(self) -> None:
+        t : Token = Token(TokenType.COLON, self.index, 1, self.source, self.line)
         self.tokens.append(t)
         self.index += 1
 

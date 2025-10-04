@@ -14,7 +14,8 @@ class TokenType(Enum):
     ASSIGNMENT      = 10
     NOT_OP          = 11
     SEMICOLON       = 12
-    EOF             = 13
+    COLON           = 13
+    EOF             = 14
 
 class Token:
     def __init__(self, type: TokenType, index: int, length: int, source: str, line: int = 0):
