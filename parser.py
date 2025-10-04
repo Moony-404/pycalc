@@ -33,22 +33,32 @@ class Parser:
     def move_pointer(self) -> None:
         self.index += 1
 
+    def consume(self, t: TokenType, message: str = '') -> None:
+        if self.current_token.type == t:
+            self.move_pointer()
+
+        else:
+            self.log(message)
+            self.synchronize()
+
+    def consume_semicolon(self) -> None:
+        self.consume(TokenType.SEMICOLON, "Expected a semicolon")
+
     def parse(self, tokens: List[Token]) -> None:
         self.script = []
         self.index = 0
         self.tokens = tokens
         self.error = False
 
-        if not self.end_of_tokens:
-            node = self.parse_decl()
+        while not self.end_of_tokens:
+            node = self.parse_stmt()
             if node is not None:
                 self.script.append(node)
 
         if not self.end_of_tokens:
-            self.log("Invalid syntax, extra tokens")
-            self.synchronize()
+            self.log("Invalid syntax, unnecessay tokens")
 
-    def parse_decl(self) -> Optional[ast.Stmt]:
+    def parse_stmt(self) -> Optional[ast.Stmt]:
         if self.current_token.type == TokenType.IDENTIFIER:
             if  self.current_token.lexeme == 'print':
                 print_stmt : ast.Stmt = self.parse_print_stmt()
@@ -60,11 +70,14 @@ class Parser:
         
         expr : ast.Expr = self.parse_assignment()
         expr_stmt : ast.ExprStmt = ast.ExprStmt(expr)
+        self.consume_semicolon()
+        
         return expr_stmt
 
     def parse_print_stmt(self) -> ast.PrintStmt:
         self.move_pointer()
         e : ast.Expr = self.parse_assignment()
+        self.consume_semicolon()
         return ast.PrintStmt(e)
     
     def parse_let_stmt(self) -> Optional[ast.LetStmt]:
@@ -77,12 +90,14 @@ class Parser:
             self.synchronize()
             return 
         
+        e: Optional[ast.Expr] = None
+
         if not self.end_of_tokens and self.current_token.type == TokenType.ASSIGNMENT:
             self.move_pointer()
-            e : ast.Expr = self.parse_assignment()
-            return ast.LetStmt(name, e)
-        
-        return ast.LetStmt(name, None)
+            e: Optional[ast.Expr] = self.parse_assignment()
+            
+        self.consume_semicolon()
+        return ast.LetStmt(name, e)
 
     def parse_assignment(self) -> ast.Expr:
         lvalue: ast.Expr = self.parse_logical_expr()
