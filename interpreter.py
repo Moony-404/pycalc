@@ -31,7 +31,7 @@ class Interpreter:
             self.execute_let_stmt
         ]
 
-    def run(self) -> None:
+    def repl(self) -> None:
         while (True):
             user_input: str = input("> ")
             user_input = user_input.strip()
@@ -46,9 +46,21 @@ class Interpreter:
             if self.parser.error:
                 continue
                         
-            self.execute_script(self.parser.script)
+            self.execute(self.parser.tree)
 
-    def execute_script(self, script: List[ast.Stmt]) -> None:
+    def run(self, source: str) -> None:
+        self.scanner.scan(source)
+        if self.scanner.error:
+            return
+        
+        self.parser.parse(self.scanner.tokens)
+        if self.parser.error:
+            return
+        
+        self.execute(self.parser.tree)
+
+
+    def execute(self, script: List[ast.Stmt]) -> None:
         for stmt in script:
             ID = stmt.AST_ID
             if ID == -1:
