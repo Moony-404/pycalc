@@ -5,6 +5,11 @@ class Keywords(Enum):
     LET             = 'let'
     IF              = 'if'
     ELSE            = 'else'
+    TRUE            = 'True'
+    FALSE           = 'False'
+    NOT             = 'not'
+    AND             = 'and'
+    OR              = 'or'
 
 class TokenType(Enum):
     REAL            = 0

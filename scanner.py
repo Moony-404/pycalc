@@ -9,7 +9,7 @@ class Lexer:
     NOT:            str = '!'
     PARENTHESIS:    str = '()'
     BRACES:         str = '{}'
-    WS:             str = ' \t'
+    WS:             str = '\t '
 
     def __init__(self):
         self.tokens: List[Token] = []

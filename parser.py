@@ -1,21 +1,23 @@
 import sys
 import syntax_tree as ast
 from scanner import *
-from typing import List
+from typing import List, Tuple
 
 class Parser:
     def __init__(self):
-        self.tree: List[ast.Stmt] = []
+        self.tree: List[ast.Statement] = []
         self.index: int = 0
         self.tokens: List[Token] = []
-        self.error = False
+        self.error: bool = False
+
 
     def log(self, message):
         self.error = True
         print(f"[Syntax Error] {message} : {self.current_token.line}")
 
+
     def synchronize(self):
-        while not self.end_of_tokens:
+        while not self.at_end:
             if self.current_token.type == TokenType.SEMICOLON:
                 self.index += 1
                 break
@@ -26,22 +28,27 @@ class Parser:
         return self.tokens[self.index]
 
     @property
-    def end_of_tokens(self) -> bool:
+    def at_end(self) -> bool:
         return self.current_token.type == TokenType.EOF
 
-    def move_pointer(self) -> None:
+
+    def advance(self) -> None:
         self.index += 1
 
-    def consume(self, t: TokenType, message: str = '') -> None:
-        if self.current_token.type == t:
-            self.move_pointer()
 
+    def consume(self, t: TokenType, message: str = '') -> Optional[Token]:
+        if self.current_token.type == t:
+            self.advance()
+            return self.current_token
         else:
             self.log(message)
             self.synchronize()
+            return None
 
-    def consume_semicolon(self) -> None:
-        self.consume(TokenType.SEMICOLON, "Expected a semicolon")
+
+    def consume_semicolon(self) -> Optional[Token]:
+        return self.consume(TokenType.SEMICOLON, "Expected a semicolon")
+
 
     def parse(self, tokens: List[Token]) -> None:
         self.tree.clear()
@@ -49,212 +56,301 @@ class Parser:
         self.tokens = tokens
         self.error = False
 
-        while not self.end_of_tokens:
-            node = self.parse_stmt()
-            if node is not None:
+        while not self.at_end:
+            node = self.statement()
+            if node:
                 self.tree.append(node)
 
-    def parse_stmt(self) -> Optional[ast.Stmt]:
+
+    def statement(self) -> Optional[ast.Statement]:
         if self.current_token.type == TokenType.IDENTIFIER:
 
-            if  self.current_token.lexeme == 'print':
-                stmt = self.parse_print_stmt()
-                return stmt
+            if self.current_token.lexeme == Keywords.PRINT.value:
+                p: Optional[ast.PrintStatement] = self.print_statement()
+                return p
             
-            elif self.current_token.lexeme == 'let':
-                stmt = self.parse_let_stmt()
-                return stmt
+            elif self.current_token.lexeme == Keywords.LET.value:
+                l: Optional[ast.LetStatement] = self.let_statement()
+                return l
                         
-            elif self.current_token.lexeme == 'if':
-                stmt = self.parse_if_stmt()
-                return stmt                
+            elif self.current_token.lexeme == Keywords.IF.value:
+                i: Optional[ast.IfStatement] = self.if_statement()
+                return i
         
-        expr : ast.Expr = self.parse_assignment()
-        expr_stmt : ast.ExprStmt = ast.ExprStmt(expr)
+        e: Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
+        if not e:
+            return None
+        
+        e_statement: ast.ExpressionStatement = ast.ExpressionStatement(e)
         self.consume_semicolon()
-        return expr_stmt
-    
+        return e_statement
 
-    def parse_if_stmt(self):
-        self.move_pointer()
+
+    def print_statement(self) -> Optional[ast.PrintStatement]:
+        self.consume(TokenType.IDENTIFIER)
+        e : Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
+
+        if not e:
+            self.log("Expected an expression after print")
+            self.synchronize()
+            return None
+
+        self.consume_semicolon()
+        return ast.PrintStatement(e)
+
+
+    def let_statement(self) -> Optional[ast.LetStatement]:
+        self.consume(TokenType.IDENTIFIER)
+        ID : Optional[ast.Node] = self.identifier()
+
+        if not ID:
+            return None
+            
+        e: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = None
+
+        if not self.at_end and self.current_token.type == TokenType.ASSIGNMENT:
+            self.consume(TokenType.IDENTIFIER)
+            e = self.assignment()
+            
+        self.consume_semicolon()
+        return ast.LetStatement(ID, e)
+
+
+    def if_statement(self) -> Optional[ast.IfStatement]:
+        self.consume(TokenType.IDENTIFIER)
+
+        e: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
+        if not e:
+            self.log("Expected an expression after 'if' keyword")
+            self.synchronize()
+            return None
         
-        e : ast.Expr = self.parse_assignment()
-        self.consume(TokenType.COLON, "Expected a :")
+        if not self.consume(TokenType.COLON, "Expected a ':' after if statement"):
+            return None
 
-        p : Optional[ast.Stmt] = self.parse_stmt()
-        q : Optional[ast.Stmt] = None
+        p: Optional[ast.Statement] = self.statement()
+        q: Optional[ast.Statement] = None
 
         if self.current_token.lexeme == 'else':
-            self.move_pointer()
-            self.consume(TokenType.COLON, "Expected a :")
-            q = self.parse_stmt()
-
-        return ast.IfStmt(e, p, q)
-
-    def parse_print_stmt(self) -> ast.PrintStmt:
-        self.move_pointer()
-        e : ast.Expr = self.parse_assignment()
-        self.consume_semicolon()
-        return ast.PrintStmt(e)
-    
-    def parse_let_stmt(self) -> Optional[ast.LetStmt]:
-        self.move_pointer()
-        if self.current_token.type == TokenType.IDENTIFIER:
-            name = self.current_token.lexeme
-            self.move_pointer()
-        else:
-            self.log("Expected an identifier after let")
-            self.synchronize()
-            return 
-        
-        e: Optional[ast.Expr] = None
-
-        if not self.end_of_tokens and self.current_token.type == TokenType.ASSIGNMENT:
-            self.move_pointer()
-            e: Optional[ast.Expr] = self.parse_assignment()
+            self.consume(TokenType.IDENTIFIER)
+            if not self.consume(TokenType.COLON, "Expected a ':' after else"):
+                return None
             
-        self.consume_semicolon()
-        return ast.LetStmt(name, e)
+            q = self.statement()
 
-    def parse_assignment(self) -> ast.Expr:
-        lvalue: ast.Expr = self.parse_logical_expr()
+        return ast.IfStatement(p, e, q)
+    
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.ASSIGNMENT and isinstance(lvalue, ast.IdentifierNode):
-            self.move_pointer()
-            rvalue: ast.Expr = self.parse_logical_expr()
-            return ast.Assignment(lvalue.word, rvalue)
+    def assignment(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        lvalue: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.logical()
+
+        if not lvalue:
+            return None
+
+        if self.current_token.type == TokenType.ASSIGNMENT:
+            op = self.consume(TokenType.ASSIGNMENT)
+            
+            if op and lvalue.type == ast.NodeType.IDENTIFIER_NODE:
+                rvalue: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
+                if not rvalue:
+                    self.log("Expected an expression after =")
+                    self.synchronize()
+                    return None
+                  
+                return ast.BinaryNode(ast.NodeType.ASSIGNMENT, op, lvalue, rvalue)
+
+            else:
+                self.log("Expected an identifier before =")
+                self.synchronize()
+                return None
         
         return lvalue
-    
-    def parse_logical_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_equality_expr()
+        
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.LOGICAL_OP:
-            operator: str = self.current_token.lexeme
-            self.move_pointer()
-            right: ast.Expr = self.parse_logical_expr()
-            return ast.LogicalExpr(left, operator, right)
-        
-        return left
-    
-    def parse_equality_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_relational_expr()
+    def logical(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.equality()
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.EQUALITY_OP:
-            operator: str = self.current_token.lexeme
-            self.move_pointer()
-            right: ast.Expr = self.parse_equality_expr()
-            return ast.EqualityExpr(left, operator, right)
+        if not l:
+            return None
         
-        return left
-    
-    def parse_relational_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_add_expr()
+        if not self.at_end and self.current_token.type == TokenType.LOGICAL_OP:
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.logical()
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.RELATIONAL_OP:
-            operator: str = self.current_token.lexeme
-            self.move_pointer()
-            right: ast.Expr = self.parse_relational_expr()
-            return ast.RelationalExpr(left, operator, right)
-        
-        return left
-    
-    def parse_add_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_modulo_expr()
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '+-':
-            operator: str = self.current_token.lexeme
-            self.move_pointer()
-            right: ast.Expr = self.parse_add_expr()
-            return ast.AddExpr(left, operator, right)
-        
-        return left
+            return ast.BinaryNode(ast.NodeType.LOGICAL, operator, l, r)
+        return l
     
-    def parse_modulo_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_mul_expr()
+    def equality(self) ->  Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.comparison()
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme == '%':
-            self.move_pointer()
-            right: ast.Expr = self.parse_modulo_expr()
-            return ast.ModulusExpr(left, right)
+        if not l:
+            return None
         
-        return left
-    
-    def parse_mul_expr(self) -> ast.Expr:
-        left: ast.Expr = self.parse_unary_expr()
+        if not self.at_end and self.current_token.type == TokenType.EQUALITY_OP:
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.equality()
 
-        if not self.end_of_tokens and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '*/':
-            operator: str = self.current_token.lexeme
-            self.move_pointer()
-            right: ast.Expr = self.parse_mul_expr()
-            return ast.MulExpr(left, operator, right)
-        
-        return left
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
+
+            return ast.BinaryNode(ast.NodeType.EQUALITY, operator, l, r)
+        return l
     
-    def parse_unary_expr(self) -> ast.Expr:
-        if self.current_token.type == TokenType.NOT_OP:
-            self.move_pointer()
-            e = self.parse_unary_expr()
-            return ast.NotExpr(e)
+    
+    def comparison(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.term()
+
+        if not l:
+            return None
         
-        elif self.current_token.type == TokenType.ARITHMETIC_OP:
-            if self.current_token.lexeme == '-':
-                self.move_pointer()
-                try:
-                    expr = self.parse_unary_expr()
-                    return ast.NegateExpr(expr)
-                except:
-                    print("Syntax Error: Expected an expression after -")
-                    sys.exit()
-                
+        if not self.at_end and self.current_token.type == TokenType.RELATIONAL_OP:
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.comparison()
+
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
+
+            return ast.BinaryNode(ast.NodeType.COMPARISON, operator, l, r)
+        
+        return l
+    
+    def term(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.modulo()
+
+        if not l:
+            return None
+        
+        if not self.at_end and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '+-':
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.term()
+
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
+
+            return ast.BinaryNode(ast.NodeType.TERM, operator, l, r)
+        return l
+    
+    def modulo(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.factor()
+
+        if not l:
+            return None
+        
+        if not self.at_end and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '%':
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.modulo()
+
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
+
+            return ast.BinaryNode(ast.NodeType.MODULO, operator, l, r)
+        return l
+    
+    def factor(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        l: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.unary()
+
+        if not l:
+            return None
+        
+        if not self.at_end and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '%':
+            operator: Token = self.current_token
+            self.advance()
+            r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.factor()
+
+            if not r:
+                self.log(f"Expected an expression after {operator.lexeme} operator")
+                self.synchronize()
+                return None
+
+            return ast.BinaryNode(ast.NodeType.FACTOR, operator, l, r)
+        return l
+    
+    def unary(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        prefix: Token = self.current_token
+
+        if prefix.type == TokenType.NOT_OP or prefix.type == TokenType.ARITHMETIC_OP:
+            self.advance()
+            operand: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.unary()
+            if not operand:
+                self.log(f"Expected an expression after {prefix.lexeme} operator")
+                self.synchronize()
+                return None
             
-            elif self.current_token.lexeme == '+':
-                self.move_pointer()
-                try:
-                    e2: ast.Expr = self.parse_unary_expr()
-                    return e2
-                except:
-                    print("Syntax Error: Expected an expression after +")
-                    sys.exit()
+            if prefix.type == TokenType.NOT_OP:
+                return ast.UnaryNode(ast.NodeType.INVERSION, operand)
+            
+            if prefix.lexeme == '-':
+                return ast.UnaryNode(ast.NodeType.NEGATION, operand)
+            elif prefix.lexeme == '+':
+                return operand
             else:
-                print(f"Synatx Error: Can't use {self.current_token.lexeme} as a unary operator")
-                sys.exit()
+                self.log(f"Invalid unary operator, {prefix.lexeme}")
+                self.synchronize()
+                return None
+            
+        return self.primary()
 
-        return self.parse_primary_expr()
-    
-    def parse_primary_expr(self) -> ast.Expr:
-        # If there is no token to work with return 0
-        if (self.end_of_tokens):
-            print("Syntax Error in parsing primary expressions")
-            sys.exit()
+    def identifier(self) -> Optional[ast.Node]:
+        lexeme = self.current_token.lexeme
+        if self.current_token.type == TokenType.IDENTIFIER:
+            if lexeme in [member.value for member in Keywords]:
+                self.log(f"'{lexeme}' is a reserverd keyword")
+                self.synchronize()
+                return None
+            else:
+                self.advance()
+                return ast.Node(ast.NodeType.IDENTIFIER_NODE, self.current_token)
+            
+        self.log("expected an identifier")
+        self.synchronize()
+        return None 
+        
 
-        elif self.current_token.type ==  TokenType.REAL:
-            n: ast.NumberNode = ast.NumberNode(float(self.current_token.lexeme))
-            self.move_pointer()
-            return n
+    def primary(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
+        if self.current_token.type ==  TokenType.REAL:
+            r: ast.Node = ast.Node(ast.NodeType.REAL_NODE, self.current_token)
+            self.advance()
+            return r
         
         elif self.current_token.type == TokenType.IDENTIFIER:
-            i: ast.IdentifierNode = ast.IdentifierNode(self.current_token.lexeme)
-            self.move_pointer()
+            # i: ast.Node = ast.Node(ast.NodeType.IDENTIFIER_NODE, self.current_token)
+            i: ast.Node | None = self.identifier()
             return i
         
         elif self.current_token.type == TokenType.BOOLEAN:
-            b: ast.BooleanNode = ast.BooleanNode(bool(self.current_token.lexeme))
-            self.move_pointer()
+            b: ast.Node = ast.Node(ast.NodeType.BOOL_NODE, self.current_token)
+            self.advance()
             return b
         
         elif self.current_token.type == TokenType.PARENTHESIS and self.current_token.lexeme == '(':
-            self.move_pointer()
-            e : ast.Expr = self.parse_assignment()
+            self.advance()
+            e: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
 
-            if not self.current_token.type == TokenType.PARENTHESIS or self.current_token.lexeme != ')':
-                self.log("Expected a ')'")
+            if not (self.current_token.type == TokenType.PARENTHESIS and self.current_token.lexeme == ')'):
+                self.log("Unterminated parenthesis")
                 self.synchronize()
 
-            self.move_pointer()
+            self.advance()
             return e
         
-        else:
-            self.log("Invalid syntax")
-            self.synchronize()
-            sys.exit()
+        self.log("Invalid syntax")
+        self.synchronize()
+        return None
