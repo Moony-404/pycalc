@@ -7,8 +7,8 @@ class Interpreter:
         self.scanner: Lexer= Lexer()
         self.parser: Parser = Parser()
         self.symbols: dict = {}
-        
-        self.exec_functions = [
+
+        self.evaluators = [
             self.execute_identifier_node, 
             self.execute_bool_node,
             self.execute_number_node,
@@ -66,19 +66,19 @@ class Interpreter:
                 print(f"[Error] Invalid statement")
                 continue
 
-            handler = self.exec_functions[ID]
+            handler = self.evaluators[ID]
             handler(stmt)
 
     def execute_if_stmt(self, stmt: ast.IfStmt) -> None:
-        handle = self.exec_functions[stmt.condition.AST_ID]
+        handle = self.evaluators[stmt.condition.AST_ID]
         condition = bool(handle(stmt.condition))
 
         if condition and stmt.true_stmt:
-            handle = self.exec_functions[stmt.true_stmt.AST_ID]
+            handle = self.evaluators[stmt.true_stmt.AST_ID]
             handle(stmt.true_stmt)
 
         elif stmt.false_stmt:
-            handle = self.exec_functions[stmt.false_stmt.AST_ID]
+            handle = self.evaluators[stmt.false_stmt.AST_ID]
             handle(stmt.false_stmt)
     
     def execute_let_stmt(self, stmt: ast.LetStmt) -> None:
@@ -99,7 +99,7 @@ class Interpreter:
         if ID == -1:
             print(f"[Error] Invalid Expression")
 
-        handler = self.exec_functions[ID]
+        handler = self.evaluators[ID]
         return handler(expr)
 
     def execute_assignment_expr(self, assign: ast.Assignment) -> float:

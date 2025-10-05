@@ -1,5 +1,11 @@
 from enum import Enum
 
+class Keywords(Enum):
+    PRINT           = 'print'
+    LET             = 'let'
+    IF              = 'if'
+    ELSE            = 'else'
+
 class TokenType(Enum):
     REAL            = 0
     STRING          = 1
@@ -9,8 +15,8 @@ class TokenType(Enum):
     BRACE           = 5
     ARITHMETIC_OP   = 6
     RELATIONAL_OP   = 7
-    LOGICAL_OP      = 8
-    EQUALITY_OP     = 9
+    EQUALITY_OP     = 8
+    LOGICAL_OP      = 9
     ASSIGNMENT      = 10
     NOT_OP          = 11
     SEMICOLON       = 12
@@ -18,8 +24,8 @@ class TokenType(Enum):
     EOF             = 14
 
 class Token:
-    def __init__(self, type: TokenType, index: int, length: int, source: str, line: int = 0):
-        self.type = type
+    def __init__(self, _type: TokenType, index: int, length: int, source: str, line: int = 0):
+        self.type = _type
         self.index = index
         self.length = length
         self.line = line
