@@ -128,14 +128,13 @@ class Lexer:
             self.index += 1
 
         t: Token = Token(TokenType.IDENTIFIER, start, self.index - start, self.source, self.line)
-        word = self.source[start: self.index]
+        # word = self.source[start: self.index]
+        word = t.lexeme
 
-        if word == 'and' or word == 'or':
-            t.type = TokenType.LOGICAL_OP
-        elif word == 'not':
-            t.type = TokenType.NOT_OP
-        elif word == 'True' or word == 'False':
-            t.type = TokenType.BOOLEAN
+        for keyword in Reserved.keys():
+            if word == keyword:
+                t.type = Reserved[keyword]
+                break
 
         self.tokens.append(t)
 

@@ -64,24 +64,23 @@ class Parser:
 
 
     def statement(self) -> Optional[ast.Statement]:
-        if self.current_token.type == TokenType.IDENTIFIER:
-
-            if self.current_token.lexeme == Keywords.PRINT.value:
-                p: Optional[ast.PrintStatement] = self.print_statement()
-                return p
             
-            elif self.current_token.lexeme == Keywords.LET.value:
-                l: Optional[ast.LetStatement] = self.let_statement()
-                return l
-                        
-            elif self.current_token.lexeme == Keywords.IF.value:
-                i: Optional[ast.IfStatement] = self.if_statement()
-                return i
-            
-            elif self.current_token.lexeme == Keywords.WHILE.value:
-                w : Optional[ast.WhileStatement] = self.while_statement()
-                return w
-            
+        if self.current_token.type == TokenType.PRINT:
+            p: Optional[ast.PrintStatement] = self.print_statement()
+            return p
+        
+        elif self.current_token.type == TokenType.LET:
+            l: Optional[ast.LetStatement] = self.let_statement()
+            return l
+                    
+        elif self.current_token.type == TokenType.IF:
+            i: Optional[ast.IfStatement] = self.if_statement()
+            return i
+        
+        elif self.current_token.type == TokenType.WHILE:
+            w : Optional[ast.WhileStatement] = self.while_statement()
+            return w
+        
         elif self.current_token.type == TokenType.BRACE and self.current_token.lexeme == '{':
             b: Optional[ast.BlockStatement] = self.block_statement()
             return b
@@ -96,7 +95,7 @@ class Parser:
 
 
     def print_statement(self) -> Optional[ast.PrintStatement]:
-        self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.PRINT)
         e : Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
 
         if not e:
@@ -109,7 +108,7 @@ class Parser:
 
 
     def let_statement(self) -> Optional[ast.LetStatement]:
-        self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.LET)
         ID : Optional[ast.Node] = self.identifier()
 
         if not ID:
@@ -126,7 +125,7 @@ class Parser:
 
 
     def if_statement(self) -> Optional[ast.IfStatement]:
-        self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.IF)
 
         e: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
         if not e:
@@ -140,8 +139,8 @@ class Parser:
         p: Optional[ast.Statement] = self.statement()
         q: Optional[ast.Statement] = None
 
-        if self.current_token.lexeme == 'else':
-            self.consume(TokenType.IDENTIFIER)
+        if self.current_token.type == TokenType.ELSE:
+            self.consume(TokenType.ELSE)
             if not self.consume(TokenType.COLON, "Expected a ':' after else"):
                 return None
             
@@ -151,7 +150,7 @@ class Parser:
     
 
     def while_statement(self) -> Optional[ast.WhileStatement]:
-        self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.WHILE)
         
         e : Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
         if not e:
@@ -349,7 +348,7 @@ class Parser:
     def identifier(self) -> Optional[ast.Node]:
         lexeme = self.current_token.lexeme
         if self.current_token.type == TokenType.IDENTIFIER:
-            if lexeme in [member.value for member in Keywords]:
+            if lexeme in Reserved.keys():
                 self.log(f"'{lexeme}' is a reserverd keyword")
                 self.synchronize()
                 return None

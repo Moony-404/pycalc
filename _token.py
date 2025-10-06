@@ -1,17 +1,5 @@
 from enum import Enum
 
-class Keywords(Enum):
-    PRINT           = 'print'
-    LET             = 'let'
-    IF              = 'if'
-    ELSE            = 'else'
-    TRUE            = 'True'
-    FALSE           = 'False'
-    NOT             = 'not'
-    AND             = 'and'
-    OR              = 'or'
-    WHILE           = 'while'
-
 class TokenType(Enum):
     REAL            = 0
     STRING          = 1
@@ -27,7 +15,34 @@ class TokenType(Enum):
     NOT_OP          = 11
     SEMICOLON       = 12
     COLON           = 13
-    EOF             = 14
+
+    PRINT           = 14
+    LET             = 15
+    IF              = 16
+    ELSE            = 17
+    WHILE           = 18
+
+    EOF             = 19
+
+
+Reserved = {
+    'print'         : TokenType.PRINT,
+    'let'           : TokenType.LET,
+    'if'            : TokenType.IF,
+    'else'          : TokenType.ELSE,
+    'while'         : TokenType.WHILE,
+
+    # OPERATORS
+
+    'and'           : TokenType.LOGICAL_OP,
+    'or'            : TokenType.LOGICAL_OP,
+    'not'           : TokenType.LOGICAL_OP,
+
+    # VALUES
+
+    'True'          : TokenType.BOOLEAN,
+    'False'         : TokenType.BOOLEAN
+}
 
 class Token:
     def __init__(self, _type: TokenType, index: int, length: int, source: str, line: int = 0):
