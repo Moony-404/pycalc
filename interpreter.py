@@ -1,5 +1,5 @@
 from parser import *
-from scanner import *
+from lexer import *
 from typing import List
 
 class Interpreter:

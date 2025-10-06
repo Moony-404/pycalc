@@ -4,6 +4,7 @@ from _token import Token
 from abc import ABC
 from enum import Enum
 
+
 class NodeType(Enum):
     IDENTIFIER_NODE     = 0
     BOOL_NODE           = 1

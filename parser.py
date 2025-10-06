@@ -1,6 +1,6 @@
 import sys
 import syntax_tree as ast
-from scanner import *
+from lexer import *
 from typing import List, Tuple
 
 class Parser:
