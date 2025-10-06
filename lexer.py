@@ -171,6 +171,7 @@ class Lexer:
             self.tokens.append(t)
 
         else:
+            # No need to synchronize since we are at the end of file
             self.log("Unterminated string literal")
 
 

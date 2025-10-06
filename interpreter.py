@@ -8,6 +8,8 @@ class Interpreter:
         self.parser: Parser = Parser()
         self.symbols: dict = {}
 
+        self.repl_mode = False
+
         self.evaluators = {
             ast.NodeType.IDENTIFIER_NODE    : self.identifier_node, 
             ast.NodeType.BOOL_NODE          : self.bool_node,
@@ -30,15 +32,19 @@ class Interpreter:
             ast.NodeType.LET_STMT           : self.let_stmt,
             ast.NodeType.IF_STMT            : self.if_stmt,
             ast.NodeType.WHILE_STMT         : self.while_stmt,
-            ast.NodeType.BLOCK_STMT         : self.block_stmt
+            ast.NodeType.BLOCK_STMT         : self.block_stmt,
+
+            ast.NodeType.STRING_NODE        : self.string_node
         }
 
     
     def log(self, message: str) -> None:
-        print("[Semantic Error]" + message)
+        print("[Semantic Error] " + message)
 
 
     def repl(self) -> None:
+        self.repl_mode = True
+
         while (True):
             user_input: str = input("> ")
             user_input = user_input.strip()
@@ -116,15 +122,23 @@ class Interpreter:
 
     def expr_stmt(self, stmt: ast.ExpressionStatement) -> None:
         value = self.execute_expr(stmt.primary)
+        if self.repl_mode:
+            print(value)
     
 
     def print_stmt(self, stmt: ast.PrintStatement) -> None:
         value = self.execute_expr(stmt.primary)
         print(value)
 
+
     def execute_expr(self, expr: ast.BinaryNode | ast.UnaryNode | ast.Node) -> float:
         handler = self.evaluators[expr.type]
         return handler(expr)
+
+
+    def string_node(self, expr: ast.Node) -> str:
+        return expr.token.lexeme[1:-1]
+
 
     def assignment(self, expr: ast.BinaryNode) -> float:
         ID = expr.operand[0].token.lexeme

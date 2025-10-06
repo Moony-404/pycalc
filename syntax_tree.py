@@ -27,6 +27,8 @@ class NodeType(Enum):
     WHILE_STMT          = 16
     BLOCK_STMT          = 17
 
+    STRING_NODE         = 18
+
 
 class Node:
     def __init__(self, _type: NodeType, token: Token):

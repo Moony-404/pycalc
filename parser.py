@@ -368,6 +368,11 @@ class Parser:
             self.advance()
             return r
         
+        elif self.current_token.type == TokenType.STRING:
+            s: ast.Node = ast.Node(ast.NodeType.STRING_NODE, self.current_token)
+            self.advance()
+            return s
+        
         elif self.current_token.type == TokenType.IDENTIFIER:
             i: ast.Node | None = self.identifier()
             return i
