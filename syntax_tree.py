@@ -8,6 +8,7 @@ class NodeType(Enum):
     IDENTIFIER_NODE     = 0
     BOOL_NODE           = 1
     REAL_NODE           = 2
+    
     INVERSION           = 3
     NEGATION            = 4
     FACTOR              = 5
@@ -17,10 +18,13 @@ class NodeType(Enum):
     EQUALITY            = 9
     LOGICAL             = 10
     ASSIGNMENT          = 11
+    
     EXPR_STMT           = 12
     PRINT_STMT          = 13
     LET_STMT            = 14
     IF_STMT             = 15
+    WHILE_STMT          = 16
+    BLOCK_STMT          = 17
 
 
 class Node:
@@ -54,6 +58,11 @@ class ExpressionStatement(Statement):
         self.type = NodeType.EXPR_STMT
         self.primary = primary
 
+class BlockStatement(Statement):
+    def __init__(self, array: List[Statement]):
+        self.type = NodeType.BLOCK_STMT
+        self.array = array
+
 class LetStatement(Statement):
     def __init__(self, primary: Node, secondary: BinaryNode | UnaryNode | Node | None):
         self.type = NodeType.LET_STMT
@@ -71,3 +80,9 @@ class IfStatement(Statement):
         self.primary = primary
         self.expression = expression
         self.secondary = secondary
+
+class WhileStatement(Statement):
+    def __init__(self, primary: Statement | None, expression: BinaryNode | UnaryNode | Node):
+        self.type = NodeType.WHILE_STMT
+        self.primary = primary
+        self.expression = expression

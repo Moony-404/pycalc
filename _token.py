@@ -10,6 +10,7 @@ class Keywords(Enum):
     NOT             = 'not'
     AND             = 'and'
     OR              = 'or'
+    WHILE           = 'while'
 
 class TokenType(Enum):
     REAL            = 0

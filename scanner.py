@@ -18,9 +18,11 @@ class Lexer:
         self.line = 1
         self.error = False
 
+
     def log(self, message: str) -> None:
         self.error = True
-        print(f"[Lexical Error] {message} : {self.line}")
+        print(f"[Lexical Error] {message}, at line {self.line}")
+
 
     def synchronize(self, alphabet: str, discard = True) -> None: 
         while self.inside_source():
@@ -30,6 +32,7 @@ class Lexer:
                 break
             self.index += 1
         
+ 
     def scan(self, text: str) -> None:
         self.tokens.clear()
         self.source = text
@@ -84,6 +87,7 @@ class Lexer:
 
         self.tokens.append(Token(TokenType.EOF, self.index, 0, self.source, self.line))
 
+
     def inside_source(self) -> bool:
         return self.index < len(self.source)
 
@@ -91,27 +95,32 @@ class Lexer:
     def current_char(self) -> str:
         return self.source[self.index]
     
+
     def peek(self) -> Optional[str]:
         try:
             next_char: str = self.source[self.index + 1]
             return next_char
         except IndexError:
             return None
-    
+
+
     def scan_brace(self) -> None:
         t : Token = Token(TokenType.BRACE, self.index, 1, self.source, self.line)
         self.tokens.append(t)
         self.index += 1
+
 
     def scan_semicolon(self) -> None:
         t : Token = Token(TokenType.SEMICOLON, self.index, 1, self.source, self.line)
         self.tokens.append(t)
         self.index += 1
 
+
     def scan_colon(self) -> None:
         t : Token = Token(TokenType.COLON, self.index, 1, self.source, self.line)
         self.tokens.append(t)
         self.index += 1
+
 
     def scan_identifier(self) -> None:
         start: int = self.index
@@ -129,6 +138,7 @@ class Lexer:
             t.type = TokenType.BOOLEAN
 
         self.tokens.append(t)
+
 
     def scan_number(self) -> None:
         start: int = self.index
@@ -148,6 +158,7 @@ class Lexer:
         t: Token = Token(TokenType.REAL, start, self.index - start, self.source, self.line)
         self.tokens.append(t)
 
+
     def scan_string(self) -> None:
         start = self.index  
         self.index += 1
@@ -163,10 +174,12 @@ class Lexer:
         else:
             self.log("Unterminated string literal")
 
+
     def scan_arithmetic_operator(self) -> None:
         t : Token = Token(TokenType.ARITHMETIC_OP, self.index, 1, self.source, self.line)
         self.tokens.append(t)
         self.index += 1
+
 
     def scan_relational_operator(self) -> None:
         
@@ -179,6 +192,7 @@ class Lexer:
             self.tokens.append(t)
             self.index += 1
 
+
     def scan_not_operator(self) -> None:
         if self.peek() == '=':
             t: Token = Token(TokenType.NOT_OP, self.index, 2, self.source, self.line)
@@ -187,10 +201,12 @@ class Lexer:
         else:
             self.log("Invalid opeartor !")
 
+
     def scan_parenthesis(self) -> None:
         t: Token = Token(TokenType.PARENTHESIS, self.index, 1, self.source, self.line) 
         self.tokens.append(t)
         self.index += 1
+
 
     def scan_equal_symbol(self) -> None:
         if self.peek() == '=':

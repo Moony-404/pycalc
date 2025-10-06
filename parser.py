@@ -13,7 +13,7 @@ class Parser:
 
     def log(self, message):
         self.error = True
-        print(f"[Syntax Error] {message} : {self.current_token.line}")
+        print(f"[Syntax Error] {message}, at line {self.current_token.line}")
 
 
     def synchronize(self):
@@ -38,8 +38,9 @@ class Parser:
 
     def consume(self, t: TokenType, message: str = '') -> Optional[Token]:
         if self.current_token.type == t:
+            token = self.current_token
             self.advance()
-            return self.current_token
+            return token
         else:
             self.log(message)
             self.synchronize()
@@ -76,6 +77,14 @@ class Parser:
             elif self.current_token.lexeme == Keywords.IF.value:
                 i: Optional[ast.IfStatement] = self.if_statement()
                 return i
+            
+            elif self.current_token.lexeme == Keywords.WHILE.value:
+                w : Optional[ast.WhileStatement] = self.while_statement()
+                return w
+            
+        elif self.current_token.type == TokenType.BRACE and self.current_token.lexeme == '{':
+            b: Optional[ast.BlockStatement] = self.block_statement()
+            return b
         
         e: Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
         if not e:
@@ -109,7 +118,7 @@ class Parser:
         e: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = None
 
         if not self.at_end and self.current_token.type == TokenType.ASSIGNMENT:
-            self.consume(TokenType.IDENTIFIER)
+            self.consume(TokenType.ASSIGNMENT)
             e = self.assignment()
             
         self.consume_semicolon()
@@ -140,6 +149,35 @@ class Parser:
 
         return ast.IfStatement(p, e, q)
     
+
+    def while_statement(self) -> Optional[ast.WhileStatement]:
+        self.consume(TokenType.IDENTIFIER)
+        
+        e : Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.assignment()
+        if not e:
+            self.log("Expected an expression after 'while' keyword")
+            self.synchronize()
+            return None
+        
+        if not self.consume(TokenType.COLON, "Expected a ':' after while statement"):
+            return None
+        
+        s: Optional[ast.Statement] = self.statement()
+        return ast.WhileStatement(s, e)
+    
+    def block_statement(self) -> Optional[ast.BlockStatement]:
+        self.consume(TokenType.BRACE)
+        array : List[ast.Statement] = []
+
+        while not self.at_end and self.current_token.lexeme != '}':
+            s: Optional[ast.Statement] = self.statement()
+            if s: array.append(s)
+
+        if not self.consume(TokenType.BRACE, "Unterminated block, expected a '}'"):
+            return None
+        
+        node = ast.BlockStatement(array)
+        return node
 
     def assignment(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
         lvalue: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node] = self.logical()
@@ -270,7 +308,7 @@ class Parser:
         if not l:
             return None
         
-        if not self.at_end and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '%':
+        if not self.at_end and self.current_token.type == TokenType.ARITHMETIC_OP and self.current_token.lexeme in '*/':
             operator: Token = self.current_token
             self.advance()
             r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.factor()
@@ -316,8 +354,9 @@ class Parser:
                 self.synchronize()
                 return None
             else:
+                token = self.current_token
                 self.advance()
-                return ast.Node(ast.NodeType.IDENTIFIER_NODE, self.current_token)
+                return ast.Node(ast.NodeType.IDENTIFIER_NODE, token)
             
         self.log("expected an identifier")
         self.synchronize()
@@ -331,7 +370,6 @@ class Parser:
             return r
         
         elif self.current_token.type == TokenType.IDENTIFIER:
-            # i: ast.Node = ast.Node(ast.NodeType.IDENTIFIER_NODE, self.current_token)
             i: ast.Node | None = self.identifier()
             return i
         

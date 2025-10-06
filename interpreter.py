@@ -9,26 +9,28 @@ class Interpreter:
         self.symbols: dict = {}
 
         self.evaluators = {
-            ast.NodeType.IDENTIFIER_NODE : self.execute_identifier_node, 
-            ast.NodeType.BOOL_NODE: self.execute_bool_node,
-            ast.NodeType.REAL_NODE : self.execute_real_node,
+            ast.NodeType.IDENTIFIER_NODE    : self.identifier_node, 
+            ast.NodeType.BOOL_NODE          : self.bool_node,
+            ast.NodeType.REAL_NODE          : self.real_node,
             
-            ast.NodeType.INVERSION : self.execute_not_expr,
-            ast.NodeType.NEGATION : self.execute_negate_expr,
-            ast.NodeType.FACTOR : self.execute_mul_expr,
+            ast.NodeType.INVERSION          : self.not_node,
+            ast.NodeType.NEGATION           : self.negation,
+            ast.NodeType.FACTOR             : self.factor,
             
-            ast.NodeType.MODULO : self.execute_modulus_expr,
-            ast.NodeType.TERM : self.execute_add_expr,
-            ast.NodeType.COMPARISON : self.execute_relational_expr,
+            ast.NodeType.MODULO             : self.modulo,
+            ast.NodeType.TERM               : self.term,
+            ast.NodeType.COMPARISON         : self.comparison,
             
-            ast.NodeType.EQUALITY : self.execute_equality_expr,
-            ast.NodeType.LOGICAL : self.execute_logical_expr,
-            ast.NodeType.ASSIGNMENT : self.execute_assignment_expr,
+            ast.NodeType.EQUALITY           : self.equality,
+            ast.NodeType.LOGICAL            : self.logical,
+            ast.NodeType.ASSIGNMENT         : self.assignment,
             
-            ast.NodeType.PRINT_STMT : self.execute_print_stmt,
-            ast.NodeType.EXPR_STMT : self.execute_expr_stmt,
-            ast.NodeType.LET_STMT : self.execute_let_stmt,
-            ast.NodeType.IF_STMT : self.execute_if_stmt
+            ast.NodeType.PRINT_STMT         : self.print_stmt,
+            ast.NodeType.EXPR_STMT          : self.expr_stmt,
+            ast.NodeType.LET_STMT           : self.let_stmt,
+            ast.NodeType.IF_STMT            : self.if_stmt,
+            ast.NodeType.WHILE_STMT         : self.while_stmt,
+            ast.NodeType.BLOCK_STMT         : self.block_stmt
         }
 
     
@@ -72,7 +74,26 @@ class Interpreter:
             handler(stmt)
 
 
-    def execute_if_stmt(self, stmt: ast.IfStatement) -> None:
+    def block_stmt(self, stmt: ast.BlockStatement) -> None:
+        for s in stmt.array:
+            handle = self.evaluators[s.type]
+            handle(s)
+
+
+    def while_stmt(self, stmt: ast.WhileStatement) -> None:
+        handle_expression = self.evaluators[stmt.expression.type]
+        
+        if stmt.primary is None:
+            while bool(handle_expression(stmt.expression)):
+                pass
+            return
+        
+        handle_primary = self.evaluators[stmt.primary.type]
+        while bool(handle_expression(stmt.expression)):
+            handle_primary(stmt.primary)
+
+
+    def if_stmt(self, stmt: ast.IfStatement) -> None:
         handle = self.evaluators[stmt.expression.type]
         condition = bool(handle(stmt.expression))
 
@@ -85,7 +106,7 @@ class Interpreter:
             handle(stmt.secondary)
     
 
-    def execute_let_stmt(self, stmt: ast.LetStatement) -> None:
+    def let_stmt(self, stmt: ast.LetStatement) -> None:
         self.symbols[stmt.primary.token.lexeme] = None
         if stmt.secondary:
             value: float = self.execute_expr(stmt.secondary)
@@ -93,11 +114,11 @@ class Interpreter:
         return
 
 
-    def execute_expr_stmt(self, stmt: ast.ExpressionStatement) -> None:
+    def expr_stmt(self, stmt: ast.ExpressionStatement) -> None:
         value = self.execute_expr(stmt.primary)
     
 
-    def execute_print_stmt(self, stmt: ast.PrintStatement) -> None:
+    def print_stmt(self, stmt: ast.PrintStatement) -> None:
         value = self.execute_expr(stmt.primary)
         print(value)
 
@@ -105,7 +126,7 @@ class Interpreter:
         handler = self.evaluators[expr.type]
         return handler(expr)
 
-    def execute_assignment_expr(self, expr: ast.BinaryNode) -> float:
+    def assignment(self, expr: ast.BinaryNode) -> float:
         ID = expr.operand[0].token.lexeme
         if ID in self.symbols:
             value : float = self.execute_expr(expr.operand[1])
@@ -116,7 +137,7 @@ class Interpreter:
         self.log(f"Variable {ID} is not defined")
         return -1
 
-    def execute_logical_expr(self, expr: ast.BinaryNode) -> float:
+    def logical(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
@@ -125,7 +146,7 @@ class Interpreter:
         
         return float(l or r)
     
-    def execute_equality_expr(self, expr: ast.BinaryNode) -> float:
+    def equality(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
@@ -134,7 +155,7 @@ class Interpreter:
         
         return float(l != r)
     
-    def execute_relational_expr(self, expr: ast.BinaryNode) -> float:
+    def comparison(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
@@ -147,7 +168,7 @@ class Interpreter:
         else:
             return float(l >= r)
         
-    def execute_add_expr(self, expr: ast.BinaryNode) -> float:
+    def term(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
@@ -156,40 +177,44 @@ class Interpreter:
         else:
             return l - r
         
-    def execute_modulus_expr(self, expr: ast.BinaryNode) -> float:
+    def modulo(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
+        if r == 0:
+            self.log("Modulo by zero")
+            return -1
+
         return int(l) % int(r)
     
-    def execute_mul_expr(self, expr: ast.BinaryNode) -> float:
+    def factor(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
         r: float = self.execute_expr(expr.operand[1])
 
         if expr.operator.lexeme == '*':
             return l * r
         elif r == 0:
-            self.log("Division by Zero")
+            self.log("Division by zero")
             return -1
         else:
             return l / r
         
-    def execute_negate_expr(self, expr: ast.UnaryNode) -> float:
+    def negation(self, expr: ast.UnaryNode) -> float:
         value: float = -1 * self.execute_expr(expr.operand)
         return value
     
-    def execute_not_expr(self, expr: ast.UnaryNode) -> float:
+    def not_node(self, expr: ast.UnaryNode) -> float:
         value: float = not self.execute_expr(expr.operand)
         return float(value)
 
-    def execute_real_node(self, n: ast.Node) -> float:
+    def real_node(self, n: ast.Node) -> float:
         return float(n.token.lexeme)
     
-    def execute_bool_node(self, b: ast.Node) -> float:
+    def bool_node(self, b: ast.Node) -> float:
         value = b.token.lexeme
-        return 1 if value == 'true' else 0
+        return 1 if value == 'True' else 0
     
-    def execute_identifier_node(self, i: ast.Node) -> float:
+    def identifier_node(self, i: ast.Node) -> float:
         try:
             value = self.symbols[i.token.lexeme]
             return value
