@@ -77,9 +77,12 @@ class Lexer:
             elif self.current_char == ':':
                 self.scan_colon()
             
+            elif self.current_char == ',':
+                self.scan_comma()
+            
             elif self.current_char == '\n':
                 self.line += 1
-                self.index += 1
+                self.index += 1    
             
             else:
                 self.log("Unknown symbol")
@@ -109,6 +112,12 @@ class Lexer:
         self.tokens.append(t)
         self.index += 1
 
+
+    def scan_comma(self) -> None:
+        t : Token = Token(TokenType.COMMA, self.index, 1, self.source, self.line)
+        self.tokens.append(t)
+        self.index += 1
+        
 
     def scan_semicolon(self) -> None:
         t : Token = Token(TokenType.SEMICOLON, self.index, 1, self.source, self.line)

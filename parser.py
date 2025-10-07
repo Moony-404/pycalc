@@ -340,23 +340,7 @@ class Parser:
                 return None
             
         return self.primary()
-
-    def identifier(self) -> Optional[ast.Node]:
-        lexeme = self.current_token.lexeme
-        if self.current_token.type == TokenType.IDENTIFIER:
-            if lexeme in Reserved.keys():
-                self.log(f"'{lexeme}' is a reserverd keyword")
-                self.synchronize()
-                return None
-            else:
-                token = self.current_token
-                self.advance()
-                return ast.Node(ast.NodeType.IDENTIFIER_NODE, token)
-            
-        self.log("expected an identifier")
-        self.synchronize()
-        return None 
-        
+      
 
     def primary(self) -> Optional[ast.BinaryNode | ast.UnaryNode | ast.Node]:
         if self.current_token.type ==  TokenType.REAL:
@@ -392,3 +376,20 @@ class Parser:
         self.log("Invalid syntax")
         self.synchronize()
         return None
+    
+    
+    def identifier(self) -> Optional[ast.Node]:
+        lexeme = self.current_token.lexeme
+        if self.current_token.type == TokenType.IDENTIFIER:
+            if lexeme in Reserved.keys():
+                self.log(f"'{lexeme}' is a reserverd keyword")
+                self.synchronize()
+                return None
+            else:
+                token = self.current_token
+                self.advance()
+                return ast.Node(ast.NodeType.IDENTIFIER_NODE, token)
+            
+        self.log("expected an identifier")
+        self.synchronize()
+        return None 

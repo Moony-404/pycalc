@@ -25,7 +25,8 @@ class TokenType(Enum):
     THEN            = 20
     DO              = 21
 
-    EOF             = 22
+    COMMA           = 22
+    EOF             = 23
 
 
 Reserved = {
