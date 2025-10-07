@@ -6,7 +6,7 @@ from typing import List
 class Environment:
     def __init__(self, parent=None):
         self.symbols: dict[str, float | str | bool | None] = {}
-        self.parent: Optional[Environment] = None
+        self.parent: Optional[Environment] = parent
 
     def set_value(self, key: str, value: float | str | bool | None) -> None:
         self.symbols[key] = value
