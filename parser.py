@@ -132,7 +132,7 @@ class Parser:
             self.synchronize()
             return None
         
-        if not self.consume(TokenType.COLON, "Expected a ':' after if statement"):
+        if not self.consume(TokenType.THEN, "Expected a 'then' after if statement"):
             return None
 
         p: Optional[ast.Statement] = self.statement()
@@ -140,9 +140,6 @@ class Parser:
 
         if self.current_token.type == TokenType.ELSE:
             self.consume(TokenType.ELSE)
-            if not self.consume(TokenType.COLON, "Expected a ':' after else"):
-                return None
-            
             q = self.statement()
 
         return ast.IfStatement(p, e, q)
@@ -157,7 +154,7 @@ class Parser:
             self.synchronize()
             return None
         
-        if not self.consume(TokenType.COLON, "Expected a ':' after while statement"):
+        if not self.consume(TokenType.DO, "Expected a 'do' after while statement"):
             return None
         
         s: Optional[ast.Statement] = self.statement()

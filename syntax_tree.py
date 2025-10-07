@@ -9,6 +9,7 @@ class NodeType(Enum):
     IDENTIFIER_NODE     = 0
     BOOL_NODE           = 1
     REAL_NODE           = 2
+    STRING_NODE         = 18
     
     INVERSION           = 3
     NEGATION            = 4
@@ -26,8 +27,6 @@ class NodeType(Enum):
     IF_STMT             = 15
     WHILE_STMT          = 16
     BLOCK_STMT          = 17
-
-    STRING_NODE         = 18
 
 
 class Node:

@@ -22,8 +22,10 @@ class TokenType(Enum):
     IF              = 17
     ELSE            = 18
     WHILE           = 19
+    THEN            = 20
+    DO              = 21
 
-    EOF             = 20
+    EOF             = 22
 
 
 Reserved = {
@@ -32,6 +34,8 @@ Reserved = {
     'if'            : TokenType.IF,
     'else'          : TokenType.ELSE,
     'while'         : TokenType.WHILE,
+    'do'            : TokenType.DO,
+    'then'          : TokenType.THEN,
 
     # OPERATORS
 
