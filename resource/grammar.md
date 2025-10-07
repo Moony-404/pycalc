@@ -13,7 +13,7 @@ scanning phase then the subsequent phases of compilation aren't run.
 ## Grammar for the language
 
 ```text
-program : declaration\* EOF;
+program : declaration * EOF;
 
 declaration : letStatement | statement;
 
