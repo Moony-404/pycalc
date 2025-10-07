@@ -57,7 +57,7 @@ class Lexer:
                 self.scan_relational_operator()
             
             elif self.current_char in Lexer.NOT:
-                self.scan_not_operator()
+                self.scan_inequality_operator()
 
             elif self.current_char in Lexer.PARENTHESIS:
                 self.scan_parenthesis() 
@@ -193,13 +193,13 @@ class Lexer:
             self.index += 1
 
 
-    def scan_not_operator(self) -> None:
+    def scan_inequality_operator(self) -> None:
         if self.peek() == '=':
-            t: Token = Token(TokenType.NOT_OP, self.index, 2, self.source, self.line)
+            t: Token = Token(TokenType.INEQUALITY_OP, self.index, 2, self.source, self.line)
             self.tokens.append(t)
             self.index += 2
         else:
-            self.log("Invalid opeartor !")
+            self.log("Invalid opeartor '!'")
 
 
     def scan_parenthesis(self) -> None:

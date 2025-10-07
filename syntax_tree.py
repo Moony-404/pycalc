@@ -73,9 +73,9 @@ class LetStatement(Statement):
         self.secondary = secondary
 
 class PrintStatement(Statement):
-    def __init__(self, primary: BinaryNode | UnaryNode | Node ):
+    def __init__(self, expressions: List[BinaryNode | UnaryNode | Node] ):
         self.type = NodeType.PRINT_STMT
-        self.primary = primary
+        self.expressions = expressions
 
 class IfStatement(Statement):
     def __init__(self, primary: Statement | None, expression: BinaryNode | UnaryNode | Node, secondary: Optional[Statement]):

@@ -127,8 +127,11 @@ class Interpreter:
     
 
     def print_stmt(self, stmt: ast.PrintStatement) -> None:
-        value = self.execute_expr(stmt.primary)
-        print(value)
+        for e in stmt.expressions:
+            value = self.execute_expr(e)
+            print(value, end='')
+        
+        print()
 
 
     def execute_expr(self, expr: ast.BinaryNode | ast.UnaryNode | ast.Node) -> float:

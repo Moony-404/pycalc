@@ -10,19 +10,20 @@ class TokenType(Enum):
     ARITHMETIC_OP   = 6
     RELATIONAL_OP   = 7
     EQUALITY_OP     = 8
-    LOGICAL_OP      = 9
-    ASSIGNMENT      = 10
-    NOT_OP          = 11
-    SEMICOLON       = 12
-    COLON           = 13
+    INEQUALITY_OP   = 9
+    LOGICAL_OP      = 10
+    ASSIGNMENT      = 11
+    NOT_OP          = 12
+    SEMICOLON       = 13
+    COLON           = 14
 
-    PRINT           = 14
-    LET             = 15
-    IF              = 16
-    ELSE            = 17
-    WHILE           = 18
+    PRINT           = 15
+    LET             = 16
+    IF              = 17
+    ELSE            = 18
+    WHILE           = 19
 
-    EOF             = 19
+    EOF             = 20
 
 
 Reserved = {

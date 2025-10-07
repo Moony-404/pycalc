@@ -96,15 +96,14 @@ class Parser:
 
     def print_statement(self) -> Optional[ast.PrintStatement]:
         self.consume(TokenType.PRINT)
-        e : Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
-
-        if not e:
-            self.log("Expected an expression after print")
-            self.synchronize()
-            return None
+        expressions : List[ast.Node | ast.UnaryNode | ast.BinaryNode] = []
+        
+        while not self.at_end and self.current_token.type != TokenType.SEMICOLON:
+            e : Optional[ast.Node | ast.UnaryNode | ast.BinaryNode] = self.assignment()
+            if e: expressions.append(e)
 
         self.consume_semicolon()
-        return ast.PrintStatement(e)
+        return ast.PrintStatement(expressions)
 
 
     def let_statement(self) -> Optional[ast.LetStatement]:
@@ -229,7 +228,7 @@ class Parser:
         if not l:
             return None
         
-        if not self.at_end and self.current_token.type == TokenType.EQUALITY_OP:
+        if not self.at_end and (self.current_token.type == TokenType.EQUALITY_OP or self.current_token.type == TokenType.INEQUALITY_OP):
             operator: Token = self.current_token
             self.advance()
             r: Optional[ast.BinaryNode | ast.UnaryNode | ast.Node ] = self.equality()
