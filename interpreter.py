@@ -2,11 +2,34 @@ from parser import *
 from lexer import *
 from typing import List
 
+
+class Environment:
+    def __init__(self, parent=None):
+        self.symbols: dict[str, float | str | bool | None] = {}
+        self.parent: Optional[Environment] = None
+
+    def set_value(self, key: str, value: float | str | bool | None) -> None:
+        self.symbols[key] = value
+
+    def get_value(self, key: str) -> Optional[float | str | bool]:
+        try: return self.symbols[key]
+        except KeyError: return None
+
+    def __contains__(self, key: str):
+        return key in self.symbols
+    
+    def __getitem__(self, key: str):
+        return self.symbols[key]
+
+
 class Interpreter:
     def __init__(self):
         self.scanner: Lexer= Lexer()
         self.parser: Parser = Parser()
-        self.symbols: dict = {}
+        
+        self._global: Environment = Environment()
+        self.environments: dict[ast.BlockStatement, Environment] = {}
+        self.current_env: Environment = self._global
 
         self.repl_mode = False
 
@@ -81,9 +104,17 @@ class Interpreter:
 
 
     def block_stmt(self, stmt: ast.BlockStatement) -> None:
+        parent = self.current_env
+        self.environments[stmt] = Environment(parent)
+        self.current_env = self.environments[stmt]
+
         for s in stmt.array:
             handle = self.evaluators[s.type]
             handle(s)
+
+        # Restore the original environment and delete the current environment
+        self.current_env = parent
+        del self.environments[stmt]
 
 
     def while_stmt(self, stmt: ast.WhileStatement) -> None:
@@ -113,10 +144,10 @@ class Interpreter:
     
 
     def let_stmt(self, stmt: ast.LetStatement) -> None:
-        self.symbols[stmt.primary.token.lexeme] = None
+        self.current_env.set_value(stmt.primary.token.lexeme, None)
         if stmt.secondary:
-            value: float = self.execute_expr(stmt.secondary)
-            self.symbols[stmt.primary.token.lexeme] = value
+            value: Optional[str | float | bool] = self.execute_expr(stmt.secondary)
+            self.current_env.set_value(stmt.primary.token.lexeme, value)
         return
 
 
@@ -145,14 +176,22 @@ class Interpreter:
 
     def assignment(self, expr: ast.BinaryNode) -> float:
         ID = expr.operand[0].token.lexeme
-        if ID in self.symbols:
-            value : float = self.execute_expr(expr.operand[1])
-            self.symbols[ID] = value
-            return value
+
+        # Look for the variable in the scope tree
+        env = self.current_env
+        while env is not None:
+            if ID in env:
+                break
+            env = env.parent
+
+        if not env: 
+            self.log(f"Variable {ID} is not defined")
+            return -1
         
-        # Need to change this
-        self.log(f"Variable {ID} is not defined")
-        return -1
+        value : float = self.execute_expr(expr.operand[1])
+        env.set_value(ID, value)
+        return value
+        
 
     def logical(self, expr: ast.BinaryNode) -> float:
         l: float = self.execute_expr(expr.operand[0])
@@ -231,10 +270,19 @@ class Interpreter:
         value = b.token.lexeme
         return 1 if value == 'True' else 0
     
-    def identifier_node(self, i: ast.Node) -> float:
-        try:
-            value = self.symbols[i.token.lexeme]
-            return value
-        except KeyError:
+    def identifier_node(self, i: ast.Node) -> Optional[float | str | bool]:
+        ID = i.token.lexeme
+        env = self.current_env
+
+        while env is not None:
+            if ID in env:
+                break
+            env = env.parent
+
+        if not env:
             self.log(f"Undefined variable, {i.token.lexeme}")
             return -1
+        
+        value = env[i.token.lexeme]
+        return value
+            
