@@ -1,0 +1,11 @@
+let sum = 0;
+let i = 0;
+let end = 100;
+
+while i < end do {
+    i = i + 1;
+    sum = sum + i;
+    print i;
+}
+
+print "SUM(1, " end ") = " sum;
